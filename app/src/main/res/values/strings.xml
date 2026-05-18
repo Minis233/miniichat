@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MiniiChat</string>
+    <string name="new_chat">New chat</string>
+    <string name="send">Send</string>
+    <string name="settings">Settings</string>
+    <string name="hint_input">Message MiniiChat…</string>
+    <string name="empty_title">Hi, I\'m MiniiChat</string>
+    <string name="empty_subtitle">A tiny open-source chat client for any OpenAI-compatible API.</string>
+    <string name="copy">Copy</string>
+    <string name="delete">Delete</string>
+    <string name="rename">Rename</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="chats">Chats</string>
+    <string name="setting_base_url">API Base URL</string>
+    <string name="setting_api_key">API Key</string>
+    <string name="setting_model">Model</string>
+    <string name="setting_system">System prompt</string>
+    <string name="setting_temperature">Temperature</string>
+    <string name="setting_stream">Stream responses</string>
+    <string name="setting_about">About</string>
+    <string name="about_text">MiniiChat — a Minis-inspired open-source LLM client. MIT licensed.</string>
+    <string name="error_no_key">No API key configured. Open Settings to add one.</string>
+    <string name="stop">Stop</string>
+    <string name="regenerate">Regenerate</string>
+    <string name="you">You</string>
+    <string name="assistant">Assistant</string>
+    <string name="thinking">Thinking…</string>
+    <string name="example_prompt_1">Explain what an LLM is in one paragraph.</string>
+    <string name="example_prompt_2">Write a haiku about Android development.</string>
+    <string name="example_prompt_3">Give me 5 tips for productive remote work.</string>
+    <string name="example_prompt_4">Translate \"Good morning\" into Japanese.</string>
+</resources>
