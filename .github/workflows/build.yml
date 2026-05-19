@@ -27,18 +27,44 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Generate release keystore
+        run: |
+          keytool -genkeypair \
+            -keystore app/release.keystore \
+            -storepass miniichat \
+            -keypass miniichat \
+            -alias miniichat \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=MiniiChat, OU=MiniiChat, O=Minis233, L=NA, ST=NA, C=US"
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK artifact
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+        env:
+          RELEASE_STORE_PASSWORD: miniichat
+          RELEASE_KEY_ALIAS: miniichat
+          RELEASE_KEY_PASSWORD: miniichat
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: miniichat-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: miniichat-release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
       - name: Create release on tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/*.apk
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/debug/*.apk

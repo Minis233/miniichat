@@ -13,18 +13,44 @@ android {
         applicationId = "com.miniichat"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 5
+        versionName = "1.0.0"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        create("release") {
+            // The CI workflow generates `app/release.keystore` before build.
+            // Locally you can override these via gradle properties or env vars.
+            val ksFile = file("release.keystore")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = (project.findProperty("RELEASE_STORE_PASSWORD") as String?)
+                    ?: System.getenv("RELEASE_STORE_PASSWORD") ?: "miniichat"
+                keyAlias = (project.findProperty("RELEASE_KEY_ALIAS") as String?)
+                    ?: System.getenv("RELEASE_KEY_ALIAS") ?: "miniichat"
+                keyPassword = (project.findProperty("RELEASE_KEY_PASSWORD") as String?)
+                    ?: System.getenv("RELEASE_KEY_PASSWORD") ?: "miniichat"
+            }
+        }
     }
 
     buildTypes {
         debug {
             isMinifyEnabled = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
         }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            isShrinkResources = false
+            // Use the release config when its keystore exists; otherwise fall back
+            // to debug so a local `assembleRelease` still works.
+            signingConfig = if (file("release.keystore").exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -46,6 +72,13 @@ android {
     }
 
     sourceSets["main"].java.srcDirs("src/main/kotlin")
+
+    applicationVariants.all {
+        outputs.all {
+            val name = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            name?.outputFileName = "miniichat-${defaultConfig.versionName}-${buildType.name}.apk"
+        }
+    }
 
     packaging {
         resources {
