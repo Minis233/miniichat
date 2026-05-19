@@ -423,13 +423,13 @@ fun ProviderEditor(
     onCancel: () -> Unit,
     onSave: (ProviderConfig) -> Unit
 ) {
-    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var name by remember(initial?.id) { mutableStateOf(initial?.name ?: "") }
     // baseUrl + apiKey here are *user input* — we never write the preset URL into them.
-    var baseUrl by remember { mutableStateOf(initial?.baseUrl ?: "") }
-    var apiKey by remember { mutableStateOf(initial?.apiKey ?: "") }
-    var presetMenuOpen by remember { mutableStateOf(initial == null) }
+    var baseUrl by remember(initial?.id) { mutableStateOf(initial?.baseUrl ?: "") }
+    var apiKey by remember(initial?.id) { mutableStateOf(initial?.apiKey ?: "") }
+    var presetMenuOpen by remember(initial?.id) { mutableStateOf(initial == null) }
     // Selected preset only used as placeholder + fallback default.
-    var presetBaseUrl by remember { mutableStateOf("") }
+    var presetBaseUrl by remember(initial?.id) { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onCancel,

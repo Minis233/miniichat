@@ -47,24 +47,23 @@ jobs:
           RELEASE_KEY_ALIAS: miniichat
           RELEASE_KEY_PASSWORD: miniichat
 
-      - name: Upload debug APK
+      - name: Upload debug APK (CI artifact only)
         uses: actions/upload-artifact@v4
         with:
           name: miniichat-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
-      - name: Upload release APK
+      - name: Upload release APKs (CI artifact)
         uses: actions/upload-artifact@v4
         with:
           name: miniichat-release
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
+      # GitHub Release: only attach release APKs (v7 + v8 split), no debug.
       - name: Create release on tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/apk/debug/*.apk
+          files: app/build/outputs/apk/release/*.apk

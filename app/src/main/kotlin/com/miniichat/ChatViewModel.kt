@@ -46,6 +46,11 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     val conversations: StateFlow<List<Conversation>> = store.conversationsFlow
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** In-memory overlay for the message currently being streamed.
+     *  Avoids a DataStore write on every token while keeping the UI live. */
+    private val _streamingOverlay = MutableStateFlow<Pair<String, String>?>(null)
+    val streamingOverlay: StateFlow<Pair<String, String>?> = _streamingOverlay.asStateFlow()
+
     private val _activeId = MutableStateFlow<String?>(null)
     val activeId: StateFlow<String?> = _activeId.asStateFlow()
 
@@ -200,6 +205,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun sendMessage(text: String, attachments: List<com.miniichat.data.Attachment> = emptyList()) {
+        // Reject re-entrant sends while a stream is in flight (debounce double-tap)
+        if (_isStreaming.value || streamingJob?.isActive == true) return
         val trimmed = text.trim()
         if (trimmed.isEmpty() && attachments.isEmpty()) return
 
@@ -330,6 +337,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val effectiveSettings = current.copy(temperature = temperature)
 
             streamingJob = launch {
+                var lastFlush = 0L
+                val flushIntervalMs = 250L
+                _streamingOverlay.value = assistantId to ""
                 try {
                     client.chatStream(provider, effectiveSettings, model, historyForApi)
                         .catch { e ->
@@ -339,9 +349,20 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         }
                         .collect { delta ->
                             builder.append(delta)
-                            appendAssistant(activeId, assistantId, builder.toString())
+                            // 1) update in-memory overlay every token (no IO)
+                            _streamingOverlay.value = assistantId to builder.toString()
+                            // 2) throttled DataStore flush
+                            val now = System.currentTimeMillis()
+                            if (now - lastFlush >= flushIntervalMs) {
+                                appendAssistant(activeId, assistantId, builder.toString())
+                                lastFlush = now
+                            }
                         }
                 } finally {
+                    if (builder.isNotEmpty()) {
+                        appendAssistant(activeId, assistantId, builder.toString())
+                    }
+                    _streamingOverlay.value = null
                     _isStreaming.value = false
                     streamingJob = null
                 }
@@ -363,9 +384,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val msgs = conv.messages
             val lastUserIdx = msgs.indexOfLast { it.role == "user" }
             if (lastUserIdx < 0) return@launch
+            val lastUser = msgs[lastUserIdx]
             val trimmed = msgs.subList(0, lastUserIdx + 1)
             store.upsert(conv.copy(messages = trimmed, updatedAt = System.currentTimeMillis()))
-            sendMessage(msgs[lastUserIdx].content)
+            sendMessage(lastUser.content, lastUser.attachments)
         }
     }
 

@@ -178,18 +178,34 @@ fun AppRoot(vm: ChatViewModel) {
     }
 
     error?.let { msg ->
+        // Only offer "Open Providers" when the error is about provider/model config.
+        val needsProviderFix = msg.contains("provider", ignoreCase = true)
+            || msg.contains("api key", ignoreCase = true)
+            || msg.contains("model", ignoreCase = true)
+            || msg.contains("401")
+            || msg.contains("403")
         AlertDialog(
             onDismissRequest = { vm.clearError() },
             confirmButton = {
-                TextButton(onClick = {
-                    vm.clearError()
-                    screen = Screen.Providers
-                }) { Text(stringResource(R.string.providers)) }
+                if (needsProviderFix) {
+                    TextButton(onClick = {
+                        vm.clearError()
+                        screen = Screen.Providers
+                    }) { Text(stringResource(R.string.error_open_providers)) }
+                } else {
+                    TextButton(onClick = { vm.clearError() }) {
+                        Text(stringResource(R.string.ok))
+                    }
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { vm.clearError() }) { Text(stringResource(R.string.ok)) }
-            },
-            title = { Text("Error") },
+            dismissButton = if (needsProviderFix) {
+                {
+                    TextButton(onClick = { vm.clearError() }) {
+                        Text(stringResource(R.string.ok))
+                    }
+                }
+            } else null,
+            title = { Text(stringResource(R.string.error_dialog_title)) },
             text = { Text(msg) }
         )
     }

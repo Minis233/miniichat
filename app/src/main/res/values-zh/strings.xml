@@ -82,4 +82,14 @@
     <string name="attachment_image">图片</string>
     <string name="attachment_file">文件</string>
     <string name="attachment_unsupported">服务商可能不支持多模态输入，仅按文件名引用发送。</string>
+    <string name="attachment_too_large">附件太大（上限 %1$d MB）</string>
+    <string name="date_today">今天</string>
+    <string name="date_yesterday">昨天</string>
+    <string name="date_previous_7">最近 7 天</string>
+    <string name="date_previous_30">最近 30 天</string>
+    <string name="date_older">更早</string>
+    <string name="section_behavior">行为</string>
+    <string name="section_about">关于</string>
+    <string name="error_dialog_title">出错了</string>
+    <string name="error_open_providers">打开服务商设置</string>
 </resources>

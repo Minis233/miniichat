@@ -78,34 +78,52 @@ fun InputBar(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            ctx.contentResolver.runCatching {
-                takePersistableUriPermission(uri,
-                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
             val (name, size) = AttachmentLoader.queryNameSize(ctx.contentResolver, uri)
-            val mime = ctx.contentResolver.getType(uri) ?: "image/jpeg"
-            onAttachmentsChange(attachments + Attachment(
-                type = "image", uri = uri.toString(),
-                mimeType = mime, name = name, sizeBytes = size
-            ))
+            if (size in 1..AttachmentLoader.MAX_ATTACHMENT_BYTES || size <= 0) {
+                ctx.contentResolver.runCatching {
+                    takePersistableUriPermission(uri,
+                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                val mime = ctx.contentResolver.getType(uri) ?: "image/jpeg"
+                onAttachmentsChange(attachments + Attachment(
+                    type = "image", uri = uri.toString(),
+                    mimeType = mime, name = name, sizeBytes = size
+                ))
+            } else {
+                android.widget.Toast.makeText(
+                    ctx,
+                    ctx.getString(R.string.attachment_too_large,
+                        AttachmentLoader.MAX_ATTACHMENT_BYTES / 1024 / 1024),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
     val pickFile = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            ctx.contentResolver.runCatching {
-                takePersistableUriPermission(uri,
-                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
             val (name, size) = AttachmentLoader.queryNameSize(ctx.contentResolver, uri)
-            val mime = ctx.contentResolver.getType(uri) ?: "application/octet-stream"
-            val isImage = mime.startsWith("image/")
-            onAttachmentsChange(attachments + Attachment(
-                type = if (isImage) "image" else "file",
-                uri = uri.toString(),
-                mimeType = mime, name = name, sizeBytes = size
-            ))
+            if (size in 1..AttachmentLoader.MAX_ATTACHMENT_BYTES || size <= 0) {
+                ctx.contentResolver.runCatching {
+                    takePersistableUriPermission(uri,
+                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                val mime = ctx.contentResolver.getType(uri) ?: "application/octet-stream"
+                val isImage = mime.startsWith("image/")
+                onAttachmentsChange(attachments + Attachment(
+                    type = if (isImage) "image" else "file",
+                    uri = uri.toString(),
+                    mimeType = mime, name = name, sizeBytes = size
+                ))
+            } else {
+                android.widget.Toast.makeText(
+                    ctx,
+                    ctx.getString(R.string.attachment_too_large,
+                        AttachmentLoader.MAX_ATTACHMENT_BYTES / 1024 / 1024),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
 

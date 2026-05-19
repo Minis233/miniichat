@@ -82,4 +82,14 @@
     <string name="attachment_image">Image</string>
     <string name="attachment_file">File</string>
     <string name="attachment_unsupported">Provider does not support multimodal input — sent as filename reference only.</string>
+    <string name="attachment_too_large">Attachment too large (max %1$d MB)</string>
+    <string name="date_today">Today</string>
+    <string name="date_yesterday">Yesterday</string>
+    <string name="date_previous_7">Previous 7 days</string>
+    <string name="date_previous_30">Previous 30 days</string>
+    <string name="date_older">Older</string>
+    <string name="section_behavior">Behavior</string>
+    <string name="section_about">About</string>
+    <string name="error_dialog_title">Something went wrong</string>
+    <string name="error_open_providers">Open Providers</string>
 </resources>

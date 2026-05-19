@@ -13,15 +13,13 @@ android {
         applicationId = "com.miniichat"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.0.0"
+        versionCode = 6
+        versionName = "1.0.1"
         vectorDrawables { useSupportLibrary = true }
     }
 
     signingConfigs {
         create("release") {
-            // The CI workflow generates `app/release.keystore` before build.
-            // Locally you can override these via gradle properties or env vars.
             val ksFile = file("release.keystore")
             if (ksFile.exists()) {
                 storeFile = ksFile
@@ -35,6 +33,15 @@ android {
         }
     }
 
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a")
+            isUniversalApk = false
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -44,8 +51,6 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            // Use the release config when its keystore exists; otherwise fall back
-            // to debug so a local `assembleRelease` still works.
             signingConfig = if (file("release.keystore").exists()) {
                 signingConfigs.getByName("release")
             } else {
@@ -73,10 +78,18 @@ android {
 
     sourceSets["main"].java.srcDirs("src/main/kotlin")
 
+    // Output: miniichat-1.0.1-arm64-v8a-release.apk / miniichat-1.0.1-armeabi-v7a-release.apk
     applicationVariants.all {
+        val variant = this
         outputs.all {
-            val name = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            name?.outputFileName = "miniichat-${defaultConfig.versionName}-${buildType.name}.apk"
+            val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+                ?: return@all
+            val abiName = output.filters
+                .firstOrNull { it.filterType == com.android.build.OutputFile.ABI }
+                ?.identifier
+                ?: "universal"
+            output.outputFileName =
+                "miniichat-${variant.versionName}-${abiName}-${variant.buildType.name}.apk"
         }
     }
 

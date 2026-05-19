@@ -63,9 +63,17 @@ fun SettingsScreen(
     onOpenProviders: () -> Unit,
     onOpenAssistants: () -> Unit
 ) {
-    var system by rememberSaveable(settings.systemPrompt) { mutableStateOf(settings.systemPrompt) }
-    var temperature by rememberSaveable(settings.temperature) { mutableStateOf(settings.temperature) }
-    var stream by rememberSaveable(settings.stream) { mutableStateOf(settings.stream) }
+    // Local state seeded once; LaunchedEffect resyncs only when external settings change.
+    var system by rememberSaveable { mutableStateOf(settings.systemPrompt) }
+    var temperature by rememberSaveable { mutableStateOf(settings.temperature) }
+    val stream = settings.stream
+
+    androidx.compose.runtime.LaunchedEffect(settings.systemPrompt) {
+        if (settings.systemPrompt != system) system = settings.systemPrompt
+    }
+    androidx.compose.runtime.LaunchedEffect(settings.temperature) {
+        if (settings.temperature != temperature) temperature = settings.temperature
+    }
 
     Column(
         modifier = Modifier
@@ -136,7 +144,7 @@ fun SettingsScreen(
             }
 
             // Behavior
-            SectionHeader(stringResource(R.string.setting_system).let { "Behavior" })
+            SectionHeader(stringResource(R.string.section_behavior))
             SectionCard {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(stringResource(R.string.setting_system),
@@ -186,7 +194,6 @@ fun SettingsScreen(
                         Switch(
                             checked = stream,
                             onCheckedChange = {
-                                stream = it
                                 onChange { s -> s.copy(stream = it) }
                             }
                         )
@@ -242,7 +249,7 @@ fun SettingsScreen(
                 }
             }
 
-            SectionHeader("About")
+            SectionHeader(stringResource(R.string.section_about))
             SectionCard {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(stringResource(R.string.about_text),

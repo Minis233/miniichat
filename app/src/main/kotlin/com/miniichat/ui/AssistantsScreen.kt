@@ -105,9 +105,10 @@ fun AssistantsScreen(
                 AssistantRow(
                     assistant = a,
                     selected = a.id == activeId,
+                    canDelete = assistants.size > 1,
                     onSelect = { onSelect(a.id) },
                     onEdit = { editing = a },
-                    onDelete = { if (assistants.size > 1) onDelete(a.id) }
+                    onDelete = { onDelete(a.id) }
                 )
             }
             Spacer(Modifier.height(40.dp))
@@ -134,6 +135,7 @@ fun AssistantsScreen(
 private fun AssistantRow(
     assistant: Assistant,
     selected: Boolean,
+    canDelete: Boolean,
     onSelect: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -199,9 +201,13 @@ private fun AssistantRow(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "delete",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        IconButton(onClick = onDelete, enabled = canDelete) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "delete",
+                tint = if (canDelete) MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+            )
         }
     }
 }
@@ -212,11 +218,11 @@ fun AssistantEditor(
     onCancel: () -> Unit,
     onSave: (Assistant) -> Unit
 ) {
-    var name by remember { mutableStateOf(initial?.name ?: "") }
-    var avatar by remember { mutableStateOf(initial?.avatar ?: "🤖") }
-    var systemPrompt by remember { mutableStateOf(initial?.systemPrompt ?: "") }
-    var hasTemp by remember { mutableStateOf(initial?.temperature != null) }
-    var temp by remember { mutableStateOf(initial?.temperature ?: 0.7f) }
+    var name by remember(initial?.id) { mutableStateOf(initial?.name ?: "") }
+    var avatar by remember(initial?.id) { mutableStateOf(initial?.avatar ?: "🤖") }
+    var systemPrompt by remember(initial?.id) { mutableStateOf(initial?.systemPrompt ?: "") }
+    var hasTemp by remember(initial?.id) { mutableStateOf(initial?.temperature != null) }
+    var temp by remember(initial?.id) { mutableStateOf(initial?.temperature ?: 0.7f) }
 
     AlertDialog(
         onDismissRequest = onCancel,

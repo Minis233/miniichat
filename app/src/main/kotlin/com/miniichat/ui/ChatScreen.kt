@@ -93,7 +93,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val messages = conversation?.messages ?: emptyList()
 
-    LaunchedEffect(messages.size, messages.lastOrNull()?.content?.length) {
+    LaunchedEffect(messages.size, isStreaming) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
     }
 

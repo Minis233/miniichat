@@ -59,7 +59,6 @@ import androidx.compose.ui.unit.sp
 import com.miniichat.R
 import com.miniichat.data.Conversation
 import java.util.Calendar
-
 @Composable
 fun GlassDrawer(
     conversations: List<Conversation>,
@@ -176,10 +175,10 @@ fun GlassDrawer(
                 }
             } else {
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    grouped.forEach { (label, items) ->
-                        item(key = "h-$label") {
+                    grouped.forEach { (labelKey, items) ->
+                        item(key = "h-$labelKey") {
                             Text(
-                                label,
+                                stringResource(labelKey),
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -309,7 +308,9 @@ private fun ChatRow(
     }
 }
 
-private fun groupConversationsByDate(list: List<Conversation>): List<Pair<String, List<Conversation>>> {
+private fun groupConversationsByDate(
+    list: List<Conversation>
+): List<Pair<Int, List<Conversation>>> {
     if (list.isEmpty()) return emptyList()
     val cal = Calendar.getInstance()
     cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
@@ -330,11 +331,11 @@ private fun groupConversationsByDate(list: List<Conversation>): List<Pair<String
             else -> older += c
         }
     }
-    val out = mutableListOf<Pair<String, List<Conversation>>>()
-    if (today.isNotEmpty()) out += "Today" to today
-    if (yest.isNotEmpty()) out += "Yesterday" to yest
-    if (sevenDays.isNotEmpty()) out += "Previous 7 days" to sevenDays
-    if (thirtyDays.isNotEmpty()) out += "Previous 30 days" to thirtyDays
-    if (older.isNotEmpty()) out += "Older" to older
+    val out = mutableListOf<Pair<Int, List<Conversation>>>()
+    if (today.isNotEmpty()) out += R.string.date_today to today
+    if (yest.isNotEmpty()) out += R.string.date_yesterday to yest
+    if (sevenDays.isNotEmpty()) out += R.string.date_previous_7 to sevenDays
+    if (thirtyDays.isNotEmpty()) out += R.string.date_previous_30 to thirtyDays
+    if (older.isNotEmpty()) out += R.string.date_older to older
     return out
 }
