@@ -35,10 +35,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -317,9 +319,9 @@ private fun UserBubble(message: Message) {
                         ) {
                             Icon(
                                 imageVector = if (att.type == "image")
-                                    androidx.compose.material.icons.Icons.Default.Image
+                                    Icons.Default.Image
                                 else
-                                    androidx.compose.material.icons.Icons.Default.AttachFile,
+                                    Icons.Default.AttachFile,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer

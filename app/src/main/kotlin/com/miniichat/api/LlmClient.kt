@@ -60,11 +60,13 @@ private data class ChatChunk(
     @Serializable
     data class Choice(
         val delta: Delta? = null,
-        val message: ChatMessage? = null,
+        val message: ResponseMessage? = null,
         @SerialName("finish_reason") val finishReason: String? = null
     )
     @Serializable
     data class Delta(val content: String? = null, val role: String? = null)
+    @Serializable
+    data class ResponseMessage(val role: String = "assistant", val content: String = "")
 }
 
 @Serializable
