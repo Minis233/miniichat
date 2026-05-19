@@ -1,6 +1,7 @@
 package com.miniichat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,15 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -43,12 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miniichat.R
@@ -70,6 +66,7 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(WindowInsets.statusBars.asPaddingValues())
     ) {
         SettingsTopBar(title = stringResource(R.string.settings), onBack = onBack)
@@ -83,54 +80,37 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            // Providers entry
-            GlassSurface(
-                shape = RoundedCornerShape(20.dp),
-                tintAlpha = 0.50f,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpenProviders)
-            ) {
+            SectionCard {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenProviders)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.Storage, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                    Icon(Icons.Default.Storage, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.providers),
+                        Text(stringResource(R.string.providers),
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "${providers.size} configured",
+                            color = MaterialTheme.colorScheme.onSurface)
+                        Text("${providers.size} configured",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Icon(
-                        Icons.Default.ChevronRight, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Icon(Icons.Default.ChevronRight, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
-            // Behavior section
             SectionHeader("Behavior")
-            GlassSurface(
-                shape = RoundedCornerShape(20.dp),
-                tintAlpha = 0.45f,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            SectionCard {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(stringResource(R.string.setting_system),
                         style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.height(8.dp))
-                    GlassFieldBox {
+                    OutlinedFieldBox {
                         BasicTextField(
                             value = system,
                             onValueChange = {
@@ -165,15 +145,11 @@ fun SettingsScreen(
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                stringResource(R.string.setting_stream),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                "Server-Sent Events",
+                            Text(stringResource(R.string.setting_stream),
+                                style = MaterialTheme.typography.bodyLarge)
+                            Text("Server-Sent Events",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(
                             checked = stream,
@@ -187,17 +163,11 @@ fun SettingsScreen(
             }
 
             SectionHeader("About")
-            GlassSurface(
-                shape = RoundedCornerShape(20.dp),
-                tintAlpha = 0.40f,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            SectionCard {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                    Text(
-                        stringResource(R.string.about_text),
+                    Text(stringResource(R.string.about_text),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -207,7 +177,18 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SectionHeader(text: String) {
+fun SectionCard(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+    ) { content() }
+}
+
+@Composable
+fun SectionHeader(text: String) {
     Text(
         text,
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -217,31 +198,23 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-fun GlassFieldBox(content: @Composable () -> Unit) {
-    GlassSurface(
-        shape = RoundedCornerShape(12.dp),
-        tintAlpha = 0.30f,
-        borderAlpha = 0.22f,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            content()
-        }
-    }
+fun OutlinedFieldBox(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) { content() }
 }
 
 @Composable
 fun SettingsTopBar(title: String, onBack: () -> Unit) {
-    GlassSurface(
-        shape = RoundedCornerShape(0.dp),
-        tintAlpha = 0.30f,
-        borderAlpha = 0.0f,
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -254,5 +227,6 @@ fun SettingsTopBar(title: String, onBack: () -> Unit) {
                 modifier = Modifier.weight(1f)
             )
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
     }
 }

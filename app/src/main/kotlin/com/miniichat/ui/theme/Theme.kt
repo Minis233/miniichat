@@ -1,53 +1,40 @@
 package com.miniichat.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
 /**
- * Liquid-glass palette.
- * Iridescent pastels in light mode, deep neon-tinted navy in dark.
+ * Clean iOS-style flat theme.
+ * Pure white / near-black backgrounds, hairline dividers, accent purple for primary.
  */
 private val LightColors = lightColorScheme(
     primary = Color(0xFF6E5CFF),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE6E0FF),
+    primaryContainer = Color(0xFFEDE9FF),
     onPrimaryContainer = Color(0xFF170B5C),
-    secondary = Color(0xFF00B59C),
+    secondary = Color(0xFF6E5CFF),
     onSecondary = Color.White,
-    background = Color(0xFFF6F4FF),
-    onBackground = Color(0xFF0E0D14),
+    background = Color(0xFFFFFFFF),
+    onBackground = Color(0xFF111114),
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF0E0D14),
-    surfaceVariant = Color(0xFFEDEAF7),
-    onSurfaceVariant = Color(0xFF504C66),
-    outline = Color(0xFFCDC8DE),
-    outlineVariant = Color(0xFFE6E2F2),
+    onSurface = Color(0xFF111114),
+    surfaceVariant = Color(0xFFF3F2F7),
+    onSurfaceVariant = Color(0xFF6F6E78),
+    outline = Color(0xFFE3E1EA),
+    outlineVariant = Color(0xFFEEEDF2),
     error = Color(0xFFE34864),
     onError = Color.White
 )
@@ -57,23 +44,23 @@ private val DarkColors = darkColorScheme(
     onPrimary = Color(0xFF15093D),
     primaryContainer = Color(0xFF2C1F70),
     onPrimaryContainer = Color(0xFFE6E0FF),
-    secondary = Color(0xFF55E6CB),
-    onSecondary = Color(0xFF00342B),
-    background = Color(0xFF0B0B12),
-    onBackground = Color(0xFFEEEAFB),
-    surface = Color(0xFF13131C),
-    onSurface = Color(0xFFEEEAFB),
-    surfaceVariant = Color(0xFF1E1E2C),
-    onSurfaceVariant = Color(0xFFB6B0CB),
-    outline = Color(0xFF3A3A4F),
-    outlineVariant = Color(0xFF272736),
+    secondary = Color(0xFFB1A4FF),
+    onSecondary = Color(0xFF15093D),
+    background = Color(0xFF000000),
+    onBackground = Color(0xFFEAEAF0),
+    surface = Color(0xFF0E0E11),
+    onSurface = Color(0xFFEAEAF0),
+    surfaceVariant = Color(0xFF1A1A20),
+    onSurfaceVariant = Color(0xFF8E8E96),
+    outline = Color(0xFF2A2A30),
+    outlineVariant = Color(0xFF1F1F25),
     error = Color(0xFFFF8FA0),
     onError = Color(0xFF3D0011)
 )
 
 private val AppTypography = Typography(
-    titleLarge = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
-    titleMedium = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp),
+    titleLarge = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
+    titleMedium = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp),
     bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
     bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
     labelLarge = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium),
@@ -100,86 +87,5 @@ fun MiniiChatTheme(
         colorScheme = colors,
         typography = AppTypography,
         content = content
-    )
-}
-
-/** Iridescent gradient + blurred color blobs covering the whole window. */
-@Composable
-fun GlassBackdrop(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    val baseBrush = if (dark) {
-        Brush.linearGradient(
-            colors = listOf(
-                Color(0xFF11061F),
-                Color(0xFF09102C),
-                Color(0xFF180A26)
-            ),
-            start = Offset(0f, 0f),
-            end = Offset(1500f, 3000f)
-        )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(
-                Color(0xFFEDE6FF),
-                Color(0xFFE0F4FF),
-                Color(0xFFFFE9F2),
-                Color(0xFFFFF6E0)
-            ),
-            start = Offset(0f, 0f),
-            end = Offset(1500f, 3000f)
-        )
-    }
-
-    Box(modifier = modifier.fillMaxSize().background(baseBrush)) {
-        DecorBlobs(dark)
-        content()
-    }
-}
-
-@Composable
-private fun DecorBlobs(dark: Boolean) {
-    val (a, b, c) = if (dark) Triple(
-        Color(0xFF7C5CFF).copy(alpha = 0.55f),
-        Color(0xFF00B59C).copy(alpha = 0.40f),
-        Color(0xFFFF6B9D).copy(alpha = 0.40f)
-    ) else Triple(
-        Color(0xFFB59FFF).copy(alpha = 0.70f),
-        Color(0xFF8BD8FF).copy(alpha = 0.65f),
-        Color(0xFFFFB6A0).copy(alpha = 0.65f)
-    )
-
-    val blurDp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 100.dp else 0.dp
-
-    Box(
-        modifier = Modifier
-            .size(420.dp)
-            .offset(x = (-120).dp, y = (-80).dp)
-            .clip(CircleShape)
-            .blur(blurDp)
-            .background(a)
-    )
-    Box(
-        modifier = Modifier
-            .size(360.dp)
-            .offset(x = 240.dp, y = 200.dp)
-            .clip(CircleShape)
-            .blur(blurDp)
-            .background(b)
-    )
-    Box(
-        modifier = Modifier
-            .size(320.dp)
-            .offset(x = (-80).dp, y = 540.dp)
-            .clip(CircleShape)
-            .blur(blurDp)
-            .background(c)
-    )
-    Box(
-        modifier = Modifier
-            .size(380.dp)
-            .offset(x = 200.dp, y = 880.dp)
-            .clip(CircleShape)
-            .blur(blurDp)
-            .background(a.copy(alpha = (a.alpha * 0.7f)))
     )
 }

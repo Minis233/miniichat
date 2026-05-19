@@ -1,6 +1,7 @@
 package com.miniichat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,10 +32,12 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,11 +80,9 @@ fun GlassDrawer(
     }
     val grouped = remember(filtered) { groupConversationsByDate(filtered) }
 
-    GlassSurface(
-        shape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
-        modifier = Modifier
-            .fillMaxSize()
-            .width(312.dp)
+    ModalDrawerSheet(
+        drawerContainerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxSize().width(312.dp)
     ) {
         Column(
             modifier = Modifier
@@ -90,15 +91,13 @@ fun GlassDrawer(
         ) {
             // Header
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(11.dp))
                         .background(MaterialTheme.colorScheme.primary),
                     contentAlignment = Alignment.Center
                 ) {
@@ -116,18 +115,16 @@ fun GlassDrawer(
                 }
             }
 
-            // Search
-            GlassSurface(
-                shape = RoundedCornerShape(16.dp),
-                tintAlpha = 0.35f,
+            // Search box
+            Box(
                 modifier = Modifier
                     .padding(horizontal = 12.dp, vertical = 4.dp)
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Search, contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -201,7 +198,7 @@ fun GlassDrawer(
                 }
             }
 
-            // Settings entry
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -210,8 +207,7 @@ fun GlassDrawer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.Settings,
-                    contentDescription = null,
+                    Icons.Default.Settings, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.width(12.dp))
@@ -270,36 +266,15 @@ private fun ChatRow(
     onDelete: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    val rowMod = Modifier
-        .padding(horizontal = 8.dp, vertical = 2.dp)
-        .fillMaxWidth()
-        .clip(RoundedCornerShape(14.dp))
-        .clickable(onClick = onClick)
-
-    if (selected) {
-        GlassSurface(
-            shape = RoundedCornerShape(14.dp),
-            tintAlpha = 0.55f,
-            borderAlpha = 0.40f,
-            modifier = rowMod
-        ) { ChatRowInner(conv, menuOpen, { menuOpen = it }, onRename, onDelete) }
-    } else {
-        Box(
-            modifier = rowMod.background(Color.Transparent)
-        ) { ChatRowInner(conv, menuOpen, { menuOpen = it }, onRename, onDelete) }
-    }
-}
-
-@Composable
-private fun ChatRowInner(
-    conv: Conversation,
-    menuOpen: Boolean,
-    setMenu: (Boolean) -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit
-) {
+    val bg = if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
     Row(
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier
+            .padding(horizontal = 8.dp, vertical = 1.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(bg)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -311,23 +286,23 @@ private fun ChatRowInner(
             color = MaterialTheme.colorScheme.onSurface
         )
         Box {
-            IconButton(onClick = { setMenu(true) }, modifier = Modifier.size(28.dp)) {
+            IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(28.dp)) {
                 Icon(
                     Icons.Default.MoreVert, contentDescription = "more",
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { setMenu(false) }) {
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.rename)) },
                     leadingIcon = { Icon(Icons.Default.Edit, null) },
-                    onClick = { setMenu(false); onRename() }
+                    onClick = { menuOpen = false; onRename() }
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.delete)) },
                     leadingIcon = { Icon(Icons.Default.Delete, null) },
-                    onClick = { setMenu(false); onDelete() }
+                    onClick = { menuOpen = false; onDelete() }
                 )
             }
         }

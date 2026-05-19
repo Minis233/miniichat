@@ -1,12 +1,13 @@
 package com.miniichat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -46,7 +47,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -80,6 +80,7 @@ fun ProvidersScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(WindowInsets.statusBars.asPaddingValues())
     ) {
         SettingsTopBar(stringResource(R.string.providers), onBack)
@@ -93,34 +94,26 @@ fun ProvidersScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            // Add provider button
-            GlassSurface(
-                shape = RoundedCornerShape(20.dp),
-                tintAlpha = 0.55f,
-                borderAlpha = 0.40f,
-                modifier = Modifier.fillMaxWidth().clickable { creating = true }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .clickable { creating = true }
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Add, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary)
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     Spacer(Modifier.width(12.dp))
-                    Text(
-                        stringResource(R.string.add_provider),
+                    Text(stringResource(R.string.add_provider),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                        color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
 
             if (providers.isEmpty()) {
-                GlassSurface(
-                    shape = RoundedCornerShape(20.dp),
-                    tintAlpha = 0.35f,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                SectionCard {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -161,20 +154,14 @@ fun ProvidersScreen(
         ProviderEditor(
             initial = null,
             onCancel = { creating = false },
-            onSave = {
-                onUpsert(it)
-                creating = false
-            }
+            onSave = { onUpsert(it); creating = false }
         )
     }
     editing?.let { target ->
         ProviderEditor(
             initial = target,
             onCancel = { editing = null },
-            onSave = {
-                onUpsert(it)
-                editing = null
-            }
+            onSave = { onUpsert(it); editing = null }
         )
     }
 }
@@ -195,28 +182,19 @@ private fun ProviderCard(
     var manualInput by remember { mutableStateOf("") }
     var deleteOpen by remember { mutableStateOf(false) }
 
-    GlassSurface(
-        shape = RoundedCornerShape(20.dp),
-        tintAlpha = 0.50f,
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    SectionCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f).clickable(onClick = onEdit)) {
-                    Text(
-                        provider.name,
+                    Text(provider.name,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        provider.baseUrl,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(provider.baseUrl,
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace, fontSize = 12.sp
-                        ),
+                            fontFamily = FontFamily.Monospace, fontSize = 12.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 IconButton(onClick = { deleteOpen = true }) {
                     Icon(Icons.Default.Delete, contentDescription = "delete",
@@ -226,18 +204,15 @@ private fun ProviderCard(
 
             Spacer(Modifier.height(12.dp))
 
-            // Fetch + manual add row
             Row(verticalAlignment = Alignment.CenterVertically) {
-                GlassSurface(
-                    shape = RoundedCornerShape(12.dp),
-                    tintAlpha = 0.55f,
+                Box(
                     modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable(enabled = !fetching, onClick = onFetch)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         if (fetching) {
                             CircularProgressIndicator(
                                 strokeWidth = 2.dp,
@@ -270,8 +245,7 @@ private fun ProviderCard(
 
             Spacer(Modifier.height(12.dp))
 
-            // Manual input row
-            GlassFieldBox {
+            OutlinedFieldBox {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     BasicTextField(
                         value = manualInput,
@@ -356,9 +330,7 @@ private fun ProviderCard(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deleteOpen = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
+                TextButton(onClick = { deleteOpen = false }) { Text(stringResource(R.string.cancel)) }
             },
             title = { Text("Delete provider?") },
             text = { Text("Remove ${provider.name}? Its model list will be lost.") }
@@ -373,34 +345,38 @@ private fun ModelChip(
     onSelect: () -> Unit,
     onRemove: () -> Unit
 ) {
-    GlassSurface(
-        shape = RoundedCornerShape(50),
-        tintAlpha = if (selected) 0.65f else 0.30f,
-        borderAlpha = if (selected) 0.45f else 0.22f,
-        modifier = Modifier.clickable(onClick = onSelect)
+    val bg = if (selected) MaterialTheme.colorScheme.primaryContainer
+    else MaterialTheme.colorScheme.surfaceVariant
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.outlineVariant
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .border(1.dp, borderColor, RoundedCornerShape(50))
+            .clickable(onClick = onSelect)
+            .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                label,
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                ),
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(end = 4.dp)
+        Text(
+            label,
+            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+            else MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            ),
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(end = 4.dp)
+        )
+        IconButton(onClick = onRemove, modifier = Modifier.size(22.dp)) {
+            Icon(
+                Icons.Default.Close, contentDescription = "remove",
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            IconButton(onClick = onRemove, modifier = Modifier.size(22.dp)) {
-                Icon(
-                    Icons.Default.Close, contentDescription = "remove",
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
     }
 }
@@ -499,7 +475,7 @@ private fun DialogField(label: String, value: String, onChange: (String) -> Unit
     Column {
         Text(label, style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        GlassFieldBox {
+        OutlinedFieldBox {
             BasicTextField(
                 value = value,
                 onValueChange = onChange,
