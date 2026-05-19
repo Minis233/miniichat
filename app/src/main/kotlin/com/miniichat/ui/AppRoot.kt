@@ -39,6 +39,24 @@ fun AppRoot(vm: ChatViewModel) {
     var screen by rememberSaveable { mutableStateOf(Screen.Chat) }
     var showModelPicker by rememberSaveable { mutableStateOf(false) }
 
+    // System back: drawer closes drawer; sub-screens go back to parent;
+    // model picker dismisses; otherwise default (exit app).
+    androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) {
+        scope.launch { drawerState.close() }
+    }
+    androidx.activity.compose.BackHandler(enabled = showModelPicker) {
+        showModelPicker = false
+    }
+    androidx.activity.compose.BackHandler(enabled = screen == Screen.Settings) {
+        screen = Screen.Chat
+    }
+    androidx.activity.compose.BackHandler(enabled = screen == Screen.Providers) {
+        screen = Screen.Settings
+    }
+    androidx.activity.compose.BackHandler(enabled = screen == Screen.Assistants) {
+        screen = Screen.Settings
+    }
+
     val conversations by vm.conversations.collectAsState()
     val activeId by vm.activeId.collectAsState()
     val settings by vm.settings.collectAsState()

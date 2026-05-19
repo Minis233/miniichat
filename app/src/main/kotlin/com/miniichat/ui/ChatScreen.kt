@@ -280,15 +280,55 @@ private fun MessageItem(
     isStreaming: Boolean
 ) {
     val isUser = message.role == "user"
-    Column(modifier = Modifier.fillMaxWidth()) {
-        // sender header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+    if (isUser) {
+        UserBubble(message)
+    } else {
+        AssistantRow(message, senderLabel, isLastAssistant, isStreaming)
+    }
+}
+
+@Composable
+private fun UserBubble(message: Message) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.82f)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 18.dp,
+                        topEnd = 18.dp,
+                        bottomStart = 18.dp,
+                        bottomEnd = 4.dp
+                    )
+                )
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            if (!isUser) AvatarChip(isUser = false)
-            if (!isUser) Spacer(Modifier.width(8.dp))
+            SelectionContainer {
+                Text(
+                    text = message.content,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssistantRow(
+    message: Message,
+    senderLabel: String,
+    isLastAssistant: Boolean,
+    isStreaming: Boolean
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AvatarChip(isUser = false)
+            Spacer(Modifier.width(8.dp))
             Text(
                 senderLabel,
                 style = MaterialTheme.typography.labelLarge.copy(
@@ -297,12 +337,9 @@ private fun MessageItem(
                 ),
                 color = MaterialTheme.colorScheme.onSurface
             )
-            if (isUser) Spacer(Modifier.width(8.dp))
-            if (isUser) AvatarChip(isUser = true)
         }
         Spacer(Modifier.height(8.dp))
-        // body
-        if (message.content.isEmpty() && !isUser && isLastAssistant && isStreaming) {
+        if (message.content.isEmpty() && isLastAssistant && isStreaming) {
             TypingDots()
         } else {
             SelectionContainer {
@@ -313,8 +350,7 @@ private fun MessageItem(
                 )
             }
         }
-        // copy footer for assistant only
-        if (!isUser && message.content.isNotEmpty() && (!isLastAssistant || !isStreaming)) {
+        if (message.content.isNotEmpty() && (!isLastAssistant || !isStreaming)) {
             Spacer(Modifier.height(8.dp))
             CopyButton(content = message.content)
         }

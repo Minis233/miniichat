@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.HorizontalDivider
@@ -69,21 +68,6 @@ fun InputBar(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            // attach
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .clickable { /* TODO attachments */ },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Add, contentDescription = "attach",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(Modifier.width(6.dp))
             // input
             Box(
                 modifier = Modifier

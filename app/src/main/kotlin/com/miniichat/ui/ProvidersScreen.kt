@@ -398,14 +398,15 @@ fun ProviderEditor(
             TextButton(
                 enabled = name.isNotBlank() && baseUrl.isNotBlank(),
                 onClick = {
+                    val normalizedUrl = com.miniichat.util.BaseUrlNormalizer.normalize(baseUrl)
                     val p = (initial ?: ProviderConfig(
                         id = newId(),
                         name = name.trim(),
-                        baseUrl = baseUrl.trim(),
+                        baseUrl = normalizedUrl,
                         apiKey = apiKey.trim()
                     )).copy(
                         name = name.trim(),
-                        baseUrl = baseUrl.trim(),
+                        baseUrl = normalizedUrl,
                         apiKey = apiKey.trim()
                     )
                     onSave(p)
