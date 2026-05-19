@@ -24,17 +24,14 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @Serializable
 data class ChatMessage(val role: String, val content: String)
-
-@Serializable
-private data class ChatRequest(
-    val model: String,
-    val messages: List<ChatMessage>,
-    val stream: Boolean,
-    val temperature: Float
-)
 
 @Serializable
 private data class ChatChunk(
@@ -76,12 +73,48 @@ class LlmClient {
     private fun chatEndpoint(baseUrl: String) = "${baseUrl.trimEnd('/')}/chat/completions"
     private fun modelsEndpoint(baseUrl: String) = "${baseUrl.trimEnd('/')}/models"
 
-    /** Fetch model list from any OpenAI-compatible /models endpoint. */
+    /** Best-effort parse of a value that may be a number, bool, or string. */
+    private fun coerceToJson(v: String): JsonElement {
+        if (v.equals("true", true)) return JsonPrimitive(true)
+        if (v.equals("false", true)) return JsonPrimitive(false)
+        v.toDoubleOrNull()?.let { return JsonPrimitive(it) }
+        v.toLongOrNull()?.let { return JsonPrimitive(it) }
+        return JsonPrimitive(v)
+    }
+
+    private fun buildRequestBody(
+        provider: ProviderConfig,
+        modelId: String,
+        messages: List<ChatMessage>,
+        stream: Boolean,
+        temperature: Float
+    ): String {
+        val obj = buildJsonObject {
+            put("model", modelId)
+            put("stream", stream)
+            put("temperature", temperature)
+            put("messages", json.encodeToJsonElement(
+                kotlinx.serialization.builtins.ListSerializer(ChatMessage.serializer()),
+                messages
+            ))
+            // Append extra body params from provider settings (override last)
+            for ((k, v) in provider.extraBody) {
+                if (k.isBlank()) continue
+                put(k, coerceToJson(v))
+            }
+        }
+        return json.encodeToString(JsonObject.serializer(), obj)
+    }
+
     suspend fun listModels(provider: ProviderConfig): List<String> {
         val resp = client.get(modelsEndpoint(provider.baseUrl)) {
             headers {
                 if (provider.apiKey.isNotBlank()) {
                     append(HttpHeaders.Authorization, "Bearer ${provider.apiKey}")
+                }
+                for ((k, v) in provider.customHeaders) {
+                    if (k.isBlank()) continue
+                    append(k, v)
                 }
             }
         }
@@ -90,14 +123,12 @@ class LlmClient {
             throw RuntimeException("HTTP ${resp.status.value}: ${err.take(300)}")
         }
         val text = resp.bodyAsText()
-        // Try OpenAI shape { data: [{id: ...}] } first
         val parsed = runCatching {
             json.decodeFromString(ModelsResponse.serializer(), text)
         }.getOrNull()
         if (parsed != null && parsed.data.isNotEmpty()) {
             return parsed.data.map { it.id }.distinct().sorted()
         }
-        // Fallback: try to extract any "id" string occurrences
         val ids = Regex("\"id\"\\s*:\\s*\"([^\"]+)\"").findAll(text).map { it.groupValues[1] }.toList()
         return ids.distinct().sorted()
     }
@@ -108,13 +139,13 @@ class LlmClient {
         modelId: String,
         messages: List<ChatMessage>
     ): Flow<String> = flow {
-        val req = ChatRequest(
-            model = modelId,
+        val bodyText = buildRequestBody(
+            provider = provider,
+            modelId = modelId,
             messages = messages,
             stream = settings.stream,
             temperature = settings.temperature
         )
-        val bodyText = json.encodeToString(ChatRequest.serializer(), req)
 
         client.preparePost(chatEndpoint(provider.baseUrl)) {
             contentType(ContentType.Application.Json)
@@ -123,6 +154,10 @@ class LlmClient {
                     append(HttpHeaders.Authorization, "Bearer ${provider.apiKey}")
                 }
                 append(HttpHeaders.Accept, if (settings.stream) "text/event-stream" else "application/json")
+                for ((k, v) in provider.customHeaders) {
+                    if (k.isBlank()) continue
+                    append(k, v)
+                }
             }
             setBody(bodyText)
         }.execute { response ->

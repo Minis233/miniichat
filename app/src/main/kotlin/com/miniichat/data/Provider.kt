@@ -9,6 +9,8 @@ data class ProviderConfig(
     val baseUrl: String,
     val apiKey: String,
     val models: List<String> = emptyList(),
+    val customHeaders: Map<String, String> = emptyMap(),
+    val extraBody: Map<String, String> = emptyMap(),
     val createdAt: Long = System.currentTimeMillis()
 )
 

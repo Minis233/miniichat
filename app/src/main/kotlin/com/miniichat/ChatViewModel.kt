@@ -6,12 +6,15 @@ import androidx.lifecycle.viewModelScope
 import com.miniichat.api.ChatMessage
 import com.miniichat.api.LlmClient
 import com.miniichat.data.AppSettings
+import com.miniichat.data.Assistant
+import com.miniichat.data.AssistantStore
 import com.miniichat.data.Conversation
 import com.miniichat.data.ConversationStore
 import com.miniichat.data.Message
 import com.miniichat.data.ProviderConfig
 import com.miniichat.data.ProviderStore
 import com.miniichat.data.SettingsRepository
+import com.miniichat.util.PromptVars
 import com.miniichat.util.newId
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,12 +31,16 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val store = ConversationStore(app)
     val settingsRepo = SettingsRepository(app)
     val providerStore = ProviderStore(app)
+    val assistantStore = AssistantStore(app)
     private val client = LlmClient()
 
     val settings: StateFlow<AppSettings> = settingsRepo.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
 
     val providers: StateFlow<List<ProviderConfig>> = providerStore.providersFlow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val assistants: StateFlow<List<Assistant>> = assistantStore.assistantsFlow
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val conversations: StateFlow<List<Conversation>> = store.conversationsFlow
@@ -87,16 +94,40 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun activeProvider(): ProviderConfig? =
         providers.value.firstOrNull { it.id == settings.value.activeProviderId }
 
+    fun activeAssistant(): Assistant? =
+        assistants.value.firstOrNull { it.id == settings.value.activeAssistantId }
+
     fun selectModel(providerId: String, model: String) {
         viewModelScope.launch {
             settingsRepo.update { it.copy(activeProviderId = providerId, activeModel = model) }
         }
     }
 
+    fun selectAssistant(id: String) {
+        viewModelScope.launch {
+            settingsRepo.update { it.copy(activeAssistantId = id) }
+        }
+    }
+
+    fun upsertAssistant(a: Assistant) {
+        viewModelScope.launch { assistantStore.upsert(a) }
+    }
+
+    fun deleteAssistant(id: String) {
+        viewModelScope.launch {
+            assistantStore.delete(id)
+            if (settings.value.activeAssistantId == id) {
+                val remaining = assistantStore.snapshot()
+                settingsRepo.update {
+                    it.copy(activeAssistantId = remaining.firstOrNull()?.id ?: "default")
+                }
+            }
+        }
+    }
+
     fun upsertProvider(p: ProviderConfig) {
         viewModelScope.launch {
             providerStore.upsert(p)
-            // If this is the first provider, mark active
             val all = providerStore.snapshot()
             if (settings.value.activeProviderId.isBlank() && all.isNotEmpty()) {
                 val target = all.firstOrNull { it.id == p.id } ?: all.first()
@@ -171,20 +202,44 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun sendMessage(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
-        val provider = activeProvider()
+
         val current = settings.value
+        val assistant = activeAssistant()
+
+        // Resolve effective provider and model: assistant override > settings active
+        val provider = assistant?.preferredProviderId
+            ?.let { id -> providers.value.firstOrNull { it.id == id } }
+            ?: activeProvider()
         if (provider == null) {
-            _error.value = "No provider configured. Add one in Settings → Providers."
+            _error.value = "No provider configured."
             return
         }
-        if (provider.apiKey.isBlank() && !provider.baseUrl.contains("localhost") && !provider.baseUrl.contains("10.0.2.2")) {
+
+        val model = assistant?.preferredModel?.takeIf { it.isNotBlank() }
+            ?: current.activeModel
+        if (model.isBlank()) {
+            _error.value = "No model selected."
+            return
+        }
+
+        if (provider.apiKey.isBlank()
+            && !provider.baseUrl.contains("localhost")
+            && !provider.baseUrl.contains("10.0.2.2")
+        ) {
             _error.value = "API key is empty for ${provider.name}."
             return
         }
-        if (current.activeModel.isBlank()) {
-            _error.value = "No model selected. Tap the model name in the top bar."
-            return
-        }
+
+        val temperature = assistant?.temperature ?: current.temperature
+
+        val systemPromptRaw = assistant?.systemPrompt?.takeIf { it.isNotBlank() }
+            ?: current.systemPrompt
+        val systemPrompt = PromptVars.render(
+            template = systemPromptRaw,
+            model = model,
+            provider = provider.name,
+            assistant = assistant?.name ?: ""
+        )
 
         viewModelScope.launch {
             val activeId = _activeId.value ?: newId().also { _activeId.value = it }
@@ -206,8 +261,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             store.upsert(updated)
 
             val historyForApi = mutableListOf<ChatMessage>()
-            if (current.systemPrompt.isNotBlank()) {
-                historyForApi.add(ChatMessage("system", current.systemPrompt))
+            if (systemPrompt.isNotBlank()) {
+                historyForApi.add(ChatMessage("system", systemPrompt))
             }
             updated.messages
                 .filter { !(it.role == "assistant" && it.content.isEmpty()) }
@@ -216,8 +271,11 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             _isStreaming.value = true
             val builder = StringBuilder()
 
+            // Use settings.copy with assistant temperature override
+            val effectiveSettings = current.copy(temperature = temperature)
+
             streamingJob = launch {
-                client.chatStream(provider, current, current.activeModel, historyForApi)
+                client.chatStream(provider, effectiveSettings, model, historyForApi)
                     .catch { e ->
                         _error.value = e.message ?: "Request failed"
                         val finalContent = if (builder.isEmpty()) "(error: ${e.message})" else builder.toString()

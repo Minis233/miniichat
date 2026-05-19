@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,15 +50,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miniichat.R
 import com.miniichat.data.AppSettings
+import com.miniichat.data.Assistant
 import com.miniichat.data.ProviderConfig
 
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
     providers: List<ProviderConfig>,
+    assistants: List<Assistant>,
     onBack: () -> Unit,
     onChange: ((AppSettings) -> AppSettings) -> Unit,
-    onOpenProviders: () -> Unit
+    onOpenProviders: () -> Unit,
+    onOpenAssistants: () -> Unit
 ) {
     var system by rememberSaveable(settings.systemPrompt) { mutableStateOf(settings.systemPrompt) }
     var temperature by rememberSaveable(settings.temperature) { mutableStateOf(settings.temperature) }
@@ -70,7 +74,6 @@ fun SettingsScreen(
             .padding(WindowInsets.statusBars.asPaddingValues())
     ) {
         SettingsTopBar(title = stringResource(R.string.settings), onBack = onBack)
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -80,6 +83,7 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
+            // Providers entry
             SectionCard {
                 Row(
                     modifier = Modifier
@@ -93,8 +97,7 @@ fun SettingsScreen(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.providers),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface)
+                            style = MaterialTheme.typography.titleMedium)
                         Text("${providers.size} configured",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -104,7 +107,36 @@ fun SettingsScreen(
                 }
             }
 
-            SectionHeader("Behavior")
+            // Assistants entry
+            SectionCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenAssistants)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Person, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.assistants),
+                            style = MaterialTheme.typography.titleMedium)
+                        val active = assistants.firstOrNull { it.id == settings.activeAssistantId }
+                        Text(
+                            active?.let { "${it.avatar}  ${it.name}" }
+                                ?: "${assistants.size} assistants",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            // Behavior
+            SectionHeader(stringResource(R.string.setting_system).let { "Behavior" })
             SectionCard {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(stringResource(R.string.setting_system),
@@ -162,6 +194,54 @@ fun SettingsScreen(
                 }
             }
 
+            // Appearance
+            SectionHeader(stringResource(R.string.setting_appearance))
+            SectionCard {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.setting_dynamic_color),
+                                style = MaterialTheme.typography.bodyLarge)
+                            Text(stringResource(R.string.setting_dynamic_color_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = settings.dynamicColor,
+                            onCheckedChange = { v ->
+                                onChange { s -> s.copy(dynamicColor = v) }
+                            }
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.setting_theme_mode),
+                        style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(6.dp))
+                    SegmentedRow(
+                        options = listOf(
+                            "system" to stringResource(R.string.setting_theme_system),
+                            "light" to stringResource(R.string.setting_theme_light),
+                            "dark" to stringResource(R.string.setting_theme_dark)
+                        ),
+                        selectedKey = settings.themeMode,
+                        onSelect = { k -> onChange { s -> s.copy(themeMode = k) } }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.setting_language),
+                        style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(6.dp))
+                    SegmentedRow(
+                        options = listOf(
+                            "system" to stringResource(R.string.setting_language_system),
+                            "en" to stringResource(R.string.setting_language_en),
+                            "zh" to stringResource(R.string.setting_language_zh)
+                        ),
+                        selectedKey = settings.language,
+                        onSelect = { k -> onChange { s -> s.copy(language = k) } }
+                    )
+                }
+            }
+
             SectionHeader("About")
             SectionCard {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
@@ -172,6 +252,44 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(40.dp))
+        }
+    }
+}
+
+@Composable
+private fun SegmentedRow(
+    options: List<Pair<String, String>>,
+    selectedKey: String,
+    onSelect: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(3.dp)
+    ) {
+        options.forEach { (key, label) ->
+            val selected = key == selectedKey
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        if (selected) MaterialTheme.colorScheme.surface
+                        else androidx.compose.ui.graphics.Color.Transparent
+                    )
+                    .clickable { onSelect(key) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (selected) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -29,7 +29,7 @@ import com.miniichat.ChatViewModel
 import com.miniichat.R
 import kotlinx.coroutines.launch
 
-private enum class Screen { Chat, Settings, Providers }
+private enum class Screen { Chat, Settings, Providers, Assistants }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +50,7 @@ fun AppRoot(vm: ChatViewModel) {
 
     val activeConv = conversations.firstOrNull { it.id == activeId }
     val activeProvider = providers.firstOrNull { it.id == settings.activeProviderId }
+    val assistants by vm.assistants.collectAsState()
 
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(toast) {
@@ -111,9 +112,21 @@ fun AppRoot(vm: ChatViewModel) {
                 SettingsScreen(
                     settings = settings,
                     providers = providers,
+                    assistants = assistants,
                     onBack = { screen = Screen.Chat },
                     onChange = { vm.updateSettings(it) },
-                    onOpenProviders = { screen = Screen.Providers }
+                    onOpenProviders = { screen = Screen.Providers },
+                    onOpenAssistants = { screen = Screen.Assistants }
+                )
+            }
+            Screen.Assistants -> {
+                AssistantsScreen(
+                    assistants = assistants,
+                    activeId = settings.activeAssistantId,
+                    onBack = { screen = Screen.Settings },
+                    onSelect = { vm.selectAssistant(it) },
+                    onUpsert = { vm.upsertAssistant(it) },
+                    onDelete = { vm.deleteAssistant(it) }
                 )
             }
             Screen.Providers -> {
