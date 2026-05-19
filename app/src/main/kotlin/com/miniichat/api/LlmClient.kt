@@ -1,10 +1,12 @@
 package com.miniichat.api
 
 import com.miniichat.data.AppSettings
+import com.miniichat.data.ProviderConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.preparePost
 import io.ktor.client.request.setBody
@@ -53,6 +55,12 @@ private data class ChatResponse(
     val choices: List<ChatChunk.Choice> = emptyList()
 )
 
+@Serializable
+private data class ModelEntry(val id: String)
+
+@Serializable
+private data class ModelsResponse(val data: List<ModelEntry> = emptyList())
+
 class LlmClient {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
 
@@ -65,29 +73,54 @@ class LlmClient {
         }
     }
 
-    private fun endpoint(baseUrl: String): String {
-        val trimmed = baseUrl.trimEnd('/')
-        return "$trimmed/chat/completions"
+    private fun chatEndpoint(baseUrl: String) = "${baseUrl.trimEnd('/')}/chat/completions"
+    private fun modelsEndpoint(baseUrl: String) = "${baseUrl.trimEnd('/')}/models"
+
+    /** Fetch model list from any OpenAI-compatible /models endpoint. */
+    suspend fun listModels(provider: ProviderConfig): List<String> {
+        val resp = client.get(modelsEndpoint(provider.baseUrl)) {
+            headers {
+                if (provider.apiKey.isNotBlank()) {
+                    append(HttpHeaders.Authorization, "Bearer ${provider.apiKey}")
+                }
+            }
+        }
+        if (!resp.status.isSuccess()) {
+            val err = runCatching { resp.bodyAsText() }.getOrDefault("")
+            throw RuntimeException("HTTP ${resp.status.value}: ${err.take(300)}")
+        }
+        val text = resp.bodyAsText()
+        // Try OpenAI shape { data: [{id: ...}] } first
+        val parsed = runCatching {
+            json.decodeFromString(ModelsResponse.serializer(), text)
+        }.getOrNull()
+        if (parsed != null && parsed.data.isNotEmpty()) {
+            return parsed.data.map { it.id }.distinct().sorted()
+        }
+        // Fallback: try to extract any "id" string occurrences
+        val ids = Regex("\"id\"\\s*:\\s*\"([^\"]+)\"").findAll(text).map { it.groupValues[1] }.toList()
+        return ids.distinct().sorted()
     }
 
-    /**
-     * Streams response chunks. Emits delta strings as they arrive.
-     * If [settings.stream] is false, emits the full content once.
-     */
-    fun chatStream(settings: AppSettings, messages: List<ChatMessage>): Flow<String> = flow {
+    fun chatStream(
+        provider: ProviderConfig,
+        settings: AppSettings,
+        modelId: String,
+        messages: List<ChatMessage>
+    ): Flow<String> = flow {
         val req = ChatRequest(
-            model = settings.model,
+            model = modelId,
             messages = messages,
             stream = settings.stream,
             temperature = settings.temperature
         )
         val bodyText = json.encodeToString(ChatRequest.serializer(), req)
 
-        client.preparePost(endpoint(settings.baseUrl)) {
+        client.preparePost(chatEndpoint(provider.baseUrl)) {
             contentType(ContentType.Application.Json)
             headers {
-                if (settings.apiKey.isNotBlank()) {
-                    append(HttpHeaders.Authorization, "Bearer ${settings.apiKey}")
+                if (provider.apiKey.isNotBlank()) {
+                    append(HttpHeaders.Authorization, "Bearer ${provider.apiKey}")
                 }
                 append(HttpHeaders.Accept, if (settings.stream) "text/event-stream" else "application/json")
             }
