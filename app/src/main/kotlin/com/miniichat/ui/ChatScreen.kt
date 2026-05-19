@@ -79,7 +79,7 @@ fun ChatScreen(
     activeProvider: ProviderConfig?,
     isStreaming: Boolean,
     onMenu: () -> Unit,
-    onSend: (String) -> Unit,
+    onSend: (String, List<com.miniichat.data.Attachment>) -> Unit,
     onStop: () -> Unit,
     onRegenerate: () -> Unit,
     onNew: () -> Unit,
@@ -87,6 +87,7 @@ fun ChatScreen(
     onPickModel: () -> Unit
 ) {
     var input by rememberSaveable { mutableStateOf("") }
+    var pendingAttachments by remember { mutableStateOf<List<com.miniichat.data.Attachment>>(emptyList()) }
     val listState = rememberLazyListState()
     val messages = conversation?.messages ?: emptyList()
 
@@ -112,7 +113,7 @@ fun ChatScreen(
 
         if (messages.isEmpty()) {
             EmptyState(
-                onPick = { onSend(it) },
+                onPick = { onSend(it, emptyList()) },
                 onOpenSettings = onOpenSettings,
                 showSettingsHint = activeProvider == null,
                 modifier = Modifier.weight(1f)
@@ -171,10 +172,14 @@ fun ChatScreen(
         InputBar(
             value = input,
             onValueChange = { input = it },
+            attachments = pendingAttachments,
+            onAttachmentsChange = { pendingAttachments = it },
             onSend = {
                 val text = input
+                val atts = pendingAttachments
                 input = ""
-                onSend(text)
+                pendingAttachments = emptyList()
+                onSend(text, atts)
             },
             onStop = onStop,
             isStreaming = isStreaming,
@@ -293,26 +298,68 @@ private fun UserBubble(message: Message) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.82f)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 18.dp,
-                        topEnd = 18.dp,
-                        bottomStart = 18.dp,
-                        bottomEnd = 4.dp
-                    )
-                )
-                .background(MaterialTheme.colorScheme.primary)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth(0.82f),
+            horizontalAlignment = Alignment.End
         ) {
-            SelectionContainer {
-                Text(
-                    text = message.content,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+            if (message.attachments.isNotEmpty()) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    message.attachments.forEach { att ->
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (att.type == "image")
+                                    androidx.compose.material.icons.Icons.Default.Image
+                                else
+                                    androidx.compose.material.icons.Icons.Default.AttachFile,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                att.name,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 12.sp
+                                ),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+                if (message.content.isNotEmpty()) Spacer(Modifier.height(4.dp))
+            }
+            if (message.content.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 18.dp,
+                                topEnd = 18.dp,
+                                bottomStart = 18.dp,
+                                bottomEnd = 4.dp
+                            )
+                        )
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = message.content,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
             }
         }
     }

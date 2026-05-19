@@ -31,7 +31,27 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 @Serializable
-data class ChatMessage(val role: String, val content: String)
+data class ChatPart(
+    val type: String,                 // "text" | "image_url"
+    val text: String? = null,
+    @SerialName("image_url") val imageUrl: ImageUrl? = null
+) {
+    @Serializable
+    data class ImageUrl(val url: String, val detail: String? = null)
+}
+
+/**
+ * A chat message that can either carry plain text (string content) or a
+ * multipart payload (text + image parts). We serialize manually to keep
+ * compatibility with both OpenAI-style string content and array-of-parts.
+ */
+data class ChatMessage(
+    val role: String,
+    val content: String,
+    val parts: List<ChatPart>? = null
+) {
+    fun isMultipart(): Boolean = !parts.isNullOrEmpty()
+}
 
 @Serializable
 private data class ChatChunk(
@@ -89,15 +109,27 @@ class LlmClient {
         stream: Boolean,
         temperature: Float
     ): String {
+        val msgsJson = kotlinx.serialization.json.buildJsonArray {
+            for (m in messages) {
+                add(kotlinx.serialization.json.buildJsonObject {
+                    put("role", m.role)
+                    if (m.isMultipart()) {
+                        put("content", kotlinx.serialization.json.buildJsonArray {
+                            for (part in m.parts!!) {
+                                add(json.encodeToJsonElement(ChatPart.serializer(), part))
+                            }
+                        })
+                    } else {
+                        put("content", m.content)
+                    }
+                })
+            }
+        }
         val obj = buildJsonObject {
             put("model", modelId)
             put("stream", stream)
             put("temperature", temperature)
-            put("messages", json.encodeToJsonElement(
-                kotlinx.serialization.builtins.ListSerializer(ChatMessage.serializer()),
-                messages
-            ))
-            // Append extra body params from provider settings (override last)
+            put("messages", msgsJson)
             for ((k, v) in provider.extraBody) {
                 if (k.isBlank()) continue
                 put(k, coerceToJson(v))

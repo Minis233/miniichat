@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -57,7 +59,10 @@ import androidx.compose.ui.unit.sp
 import com.miniichat.R
 import com.miniichat.data.ProviderConfig
 import com.miniichat.data.ProviderPresets
+import com.miniichat.util.BaseUrlNormalizer
 import com.miniichat.util.newId
+
+private const val MODELS_COLLAPSED_LIMIT = 5
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -181,6 +186,7 @@ private fun ProviderCard(
 ) {
     var manualInput by remember { mutableStateOf("") }
     var deleteOpen by remember { mutableStateOf(false) }
+    var modelsExpanded by remember(provider.id) { mutableStateOf(false) }
 
     SectionCard {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -297,17 +303,48 @@ private fun ProviderCard(
 
             if (provider.models.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
+                val total = provider.models.size
+                val showAll = modelsExpanded || total <= MODELS_COLLAPSED_LIMIT
+                val visible = if (showAll) provider.models else provider.models.take(MODELS_COLLAPSED_LIMIT)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    provider.models.forEach { m ->
+                    visible.forEach { m ->
                         ModelChip(
                             label = m,
                             selected = m == activeModel,
                             onSelect = { onSelectModel(m) },
                             onRemove = { onRemoveModel(m) }
                         )
+                    }
+                }
+                if (total > MODELS_COLLAPSED_LIMIT) {
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable { modelsExpanded = !modelsExpanded }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (modelsExpanded) Icons.Default.ExpandLess
+                                else Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                if (modelsExpanded)
+                                    stringResource(R.string.collapse_models)
+                                else
+                                    stringResource(R.string.expand_models, total - MODELS_COLLAPSED_LIMIT),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                            )
+                        }
                     }
                 }
             } else {
@@ -349,7 +386,6 @@ private fun ModelChip(
     else MaterialTheme.colorScheme.surfaceVariant
     val borderColor = if (selected) MaterialTheme.colorScheme.primary
     else MaterialTheme.colorScheme.outlineVariant
-
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
@@ -388,17 +424,24 @@ fun ProviderEditor(
     onSave: (ProviderConfig) -> Unit
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
+    // baseUrl + apiKey here are *user input* — we never write the preset URL into them.
     var baseUrl by remember { mutableStateOf(initial?.baseUrl ?: "") }
     var apiKey by remember { mutableStateOf(initial?.apiKey ?: "") }
     var presetMenuOpen by remember { mutableStateOf(initial == null) }
+    // Selected preset only used as placeholder + fallback default.
+    var presetBaseUrl by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onCancel,
         confirmButton = {
             TextButton(
-                enabled = name.isNotBlank() && baseUrl.isNotBlank(),
+                enabled = name.isNotBlank()
+                    && (baseUrl.isNotBlank() || presetBaseUrl.isNotBlank() || initial?.baseUrl?.isNotBlank() == true),
                 onClick = {
-                    val normalizedUrl = com.miniichat.util.BaseUrlNormalizer.normalize(baseUrl)
+                    val effective = baseUrl.trim().ifEmpty {
+                        presetBaseUrl.ifEmpty { initial?.baseUrl ?: "" }
+                    }
+                    val normalizedUrl = BaseUrlNormalizer.normalize(effective)
                     val p = (initial ?: ProviderConfig(
                         id = newId(),
                         name = name.trim(),
@@ -424,7 +467,7 @@ fun ProviderEditor(
             Column {
                 if (presetMenuOpen && initial == null) {
                     Text(
-                        "Pick a preset or fill in manually:",
+                        stringResource(R.string.pick_preset_or_manual),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -435,8 +478,11 @@ fun ProviderEditor(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        name = preset.name
-                                        baseUrl = preset.baseUrl
+                                        // Just remember which preset was picked so we
+                                        // can use its baseUrl as placeholder/default.
+                                        // Don't overwrite the user's input fields.
+                                        if (name.isBlank()) name = preset.name
+                                        presetBaseUrl = preset.baseUrl
                                         presetMenuOpen = false
                                     }
                                     .padding(vertical = 8.dp, horizontal = 4.dp),
@@ -454,15 +500,23 @@ fun ProviderEditor(
                         }
                     }
                 } else {
-                    DialogField(stringResource(R.string.provider_name), name) { name = it }
+                    DialogField(stringResource(R.string.provider_name), name, "") { name = it }
                     Spacer(Modifier.height(8.dp))
-                    DialogField(stringResource(R.string.setting_base_url), baseUrl) { baseUrl = it }
+                    DialogField(
+                        label = stringResource(R.string.setting_base_url),
+                        value = baseUrl,
+                        placeholder = presetBaseUrl.ifEmpty { initial?.baseUrl ?: "https://…/v1" }
+                    ) { baseUrl = it }
                     Spacer(Modifier.height(8.dp))
-                    DialogField(stringResource(R.string.setting_api_key), apiKey) { apiKey = it }
+                    DialogField(
+                        stringResource(R.string.setting_api_key),
+                        apiKey,
+                        ""
+                    ) { apiKey = it }
                     if (initial == null) {
                         Spacer(Modifier.height(4.dp))
                         TextButton(onClick = { presetMenuOpen = true }) {
-                            Text("Choose preset…")
+                            Text(stringResource(R.string.choose_preset))
                         }
                     }
                 }
@@ -472,22 +526,38 @@ fun ProviderEditor(
 }
 
 @Composable
-private fun DialogField(label: String, value: String, onChange: (String) -> Unit) {
+private fun DialogField(
+    label: String,
+    value: String,
+    placeholder: String = "",
+    onChange: (String) -> Unit
+) {
     Column {
         Text(label, style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedFieldBox {
-            BasicTextField(
-                value = value,
-                onValueChange = onChange,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = LocalTextStyle.current.copy(
-                    color = LocalContentColor.current,
-                    fontSize = 14.sp
-                ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                singleLine = true
-            )
+            Box {
+                if (value.isEmpty() && placeholder.isNotEmpty()) {
+                    Text(
+                        placeholder,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp, fontFamily = FontFamily.Monospace
+                        )
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = LocalTextStyle.current.copy(
+                        color = LocalContentColor.current,
+                        fontSize = 14.sp
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    singleLine = true
+                )
+            }
         }
     }
 }

@@ -73,4 +73,13 @@
     <string name="no_models">还没有模型。点「获取模型」或手动添加。</string>
     <string name="no_providers">还没有服务商</string>
     <string name="no_providers_hint">添加一个开始使用</string>
+    <string name="pick_preset_or_manual">选择预设或手动填写</string>
+    <string name="choose_preset">选择预设…</string>
+    <string name="expand_models">展开 %1$d 个</string>
+    <string name="collapse_models">收起</string>
+    <string name="attach_image">添加图片</string>
+    <string name="attach_file">添加文件</string>
+    <string name="attachment_image">图片</string>
+    <string name="attachment_file">文件</string>
+    <string name="attachment_unsupported">服务商可能不支持多模态输入，仅按文件名引用发送。</string>
 </resources>

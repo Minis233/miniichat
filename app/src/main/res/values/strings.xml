@@ -73,4 +73,13 @@
     <string name="no_models">No models yet. Tap “Fetch models” or add manually.</string>
     <string name="no_providers">No providers yet</string>
     <string name="no_providers_hint">Add one to get started</string>
+    <string name="pick_preset_or_manual">Pick a preset or fill in manually</string>
+    <string name="choose_preset">Choose preset…</string>
+    <string name="expand_models">Show %1$d more</string>
+    <string name="collapse_models">Show fewer</string>
+    <string name="attach_image">Attach image</string>
+    <string name="attach_file">Attach file</string>
+    <string name="attachment_image">Image</string>
+    <string name="attachment_file">File</string>
+    <string name="attachment_unsupported">Provider does not support multimodal input — sent as filename reference only.</string>
 </resources>

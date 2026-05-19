@@ -114,7 +114,7 @@ fun AppRoot(vm: ChatViewModel) {
                         activeProvider = activeProvider,
                         isStreaming = isStreaming,
                         onMenu = { scope.launch { drawerState.open() } },
-                        onSend = { vm.sendMessage(it) },
+                        onSend = { text, atts -> vm.sendMessage(text, atts) },
                         onStop = { vm.stopStreaming() },
                         onRegenerate = { vm.regenerate() },
                         onNew = { vm.newConversation() },

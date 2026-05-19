@@ -199,9 +199,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun sendMessage(text: String) {
+    fun sendMessage(text: String, attachments: List<com.miniichat.data.Attachment> = emptyList()) {
         val trimmed = text.trim()
-        if (trimmed.isEmpty()) return
+        if (trimmed.isEmpty() && attachments.isEmpty()) return
 
         val current = settings.value
         val assistant = activeAssistant()
@@ -246,7 +246,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val existing = store.snapshot().firstOrNull { it.id == activeId }
             val baseTitle = trimmed.take(30).replace("\n", " ")
 
-            val userMsg = Message(id = newId(), role = "user", content = trimmed)
+            val userMsg = Message(
+                id = newId(),
+                role = "user",
+                content = trimmed,
+                attachments = attachments
+            )
             val assistantId = newId()
             val assistantPlaceholder = Message(id = assistantId, role = "assistant", content = "")
 
@@ -266,7 +271,57 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             }
             updated.messages
                 .filter { !(it.role == "assistant" && it.content.isEmpty()) }
-                .forEach { historyForApi.add(ChatMessage(it.role, it.content)) }
+                .forEach { msg ->
+                    val imgs = msg.attachments.filter { it.type == "image" }
+                    if (msg.role == "user" && imgs.isNotEmpty()) {
+                        // Build multipart content: text + image_url parts.
+                        val parts = mutableListOf<com.miniichat.api.ChatPart>()
+                        if (msg.content.isNotBlank()) {
+                            parts.add(com.miniichat.api.ChatPart(type = "text", text = msg.content))
+                        }
+                        for (att in imgs) {
+                            // Try to load + base64-encode the image. Fall back silently if it fails.
+                            val loaded = runCatching {
+                                com.miniichat.util.AttachmentLoader.load(
+                                    resolver = getApplication<android.app.Application>().contentResolver,
+                                    uri = android.net.Uri.parse(att.uri),
+                                    mimeFallback = att.mimeType.ifBlank { "image/jpeg" }
+                                )
+                            }.getOrNull() ?: continue
+                            val dataUrl = "data:${loaded.mimeType};base64,${loaded.base64}"
+                            parts.add(com.miniichat.api.ChatPart(
+                                type = "image_url",
+                                imageUrl = com.miniichat.api.ChatPart.ImageUrl(url = dataUrl)
+                            ))
+                        }
+                        // Also describe non-image attachments as text references.
+                        val others = msg.attachments.filter { it.type != "image" }
+                        if (others.isNotEmpty()) {
+                            val tail = others.joinToString("\n") { "[file: ${it.name} (${it.mimeType})]" }
+                            val merged = if (parts.firstOrNull()?.type == "text") {
+                                parts[0] = com.miniichat.api.ChatPart(
+                                    type = "text",
+                                    text = (parts[0].text ?: "") + "\n\n" + tail
+                                )
+                                parts
+                            } else {
+                                listOf(com.miniichat.api.ChatPart(type = "text", text = tail)) + parts
+                            }
+                            historyForApi.add(ChatMessage(msg.role, msg.content, merged))
+                        } else {
+                            historyForApi.add(ChatMessage(msg.role, msg.content, parts))
+                        }
+                    } else if (msg.role == "user" && msg.attachments.isNotEmpty()) {
+                        // Files only — describe inline as text refs.
+                        val refs = msg.attachments.joinToString("\n") {
+                            "[file: ${it.name} (${it.mimeType})]"
+                        }
+                        val combined = if (msg.content.isBlank()) refs else "${msg.content}\n\n$refs"
+                        historyForApi.add(ChatMessage(msg.role, combined))
+                    } else {
+                        historyForApi.add(ChatMessage(msg.role, msg.content))
+                    }
+                }
 
             _isStreaming.value = true
             val builder = StringBuilder()
@@ -275,19 +330,22 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val effectiveSettings = current.copy(temperature = temperature)
 
             streamingJob = launch {
-                client.chatStream(provider, effectiveSettings, model, historyForApi)
-                    .catch { e ->
-                        _error.value = e.message ?: "Request failed"
-                        val finalContent = if (builder.isEmpty()) "(error: ${e.message})" else builder.toString()
-                        appendAssistant(activeId, assistantId, finalContent)
-                    }
-                    .onEach { delta ->
-                        builder.append(delta)
-                        appendAssistant(activeId, assistantId, builder.toString())
-                    }
-                    .collect {}
+                try {
+                    client.chatStream(provider, effectiveSettings, model, historyForApi)
+                        .catch { e ->
+                            _error.value = e.message ?: "Request failed"
+                            val finalContent = if (builder.isEmpty()) "(error: ${e.message})" else builder.toString()
+                            appendAssistant(activeId, assistantId, finalContent)
+                        }
+                        .collect { delta ->
+                            builder.append(delta)
+                            appendAssistant(activeId, assistantId, builder.toString())
+                        }
+                } finally {
+                    _isStreaming.value = false
+                    streamingJob = null
+                }
             }
-            streamingJob?.invokeOnCompletion { _isStreaming.value = false }
         }
     }
 
