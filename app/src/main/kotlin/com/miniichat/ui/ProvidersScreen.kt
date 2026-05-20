@@ -140,7 +140,7 @@ fun ProvidersScreen(
                         provider = p,
                         fetching = fetchingId == p.id,
                         activeModel = if (activeProviderId == p.id) activeModel else "",
-                        onEdit = { editing = p },
+                        onEdit = { onEdit(p) },
                         onDelete = { onDelete(p.id) },
                         onFetch = { onFetchModels(p.id) },
                         onAddManual = { m -> onAddManualModel(p.id, m) },

@@ -69,15 +69,13 @@ fun ProviderEditorScreen(
     var apiKey by remember(initial?.id) { mutableStateOf(initial?.apiKey ?: "") }
     var presetBaseUrl by remember(initial?.id) { mutableStateOf("") }
     var headerRows by remember(initial?.id) {
-        mutableStateOf(
-            initial?.customHeaders?.map { it.key to it.value }?.toMutableList()
-                ?: mutableListOf()
+        mutableStateOf<List<Pair<String, String>>>(
+            initial?.customHeaders?.map { it.key to it.value } ?: emptyList()
         )
     }
     var bodyRows by remember(initial?.id) {
-        mutableStateOf(
-            initial?.extraBody?.map { it.key to it.value }?.toMutableList()
-                ?: mutableListOf()
+        mutableStateOf<List<Pair<String, String>>>(
+            initial?.extraBody?.map { it.key to it.value } ?: emptyList()
         )
     }
     var advancedOpen by remember(initial?.id) {

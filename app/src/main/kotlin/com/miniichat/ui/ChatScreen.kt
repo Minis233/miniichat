@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
@@ -499,7 +500,7 @@ private fun UserBubble(
                             text = { Text(stringResource(R.string.delete)) },
                             leadingIcon = {
                                 Icon(
-                                    androidx.compose.material.icons.Icons.Default.Delete,
+                                    Icons.Default.Delete,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.error
                                 )
