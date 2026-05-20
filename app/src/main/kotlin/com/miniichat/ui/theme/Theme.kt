@@ -43,21 +43,23 @@ private val LightColors = lightColorScheme(
     onError = Color.White
 )
 
+// Tightened dark scheme: lighter onSurfaceVariant for legibility, slightly bolder
+// surface contrast so subtle UI (chips, dividers, hint text) reads cleanly.
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFB1A4FF),
     onPrimary = Color(0xFF15093D),
-    primaryContainer = Color(0xFF2C1F70),
-    onPrimaryContainer = Color(0xFFE6E0FF),
+    primaryContainer = Color(0xFF3826A8),
+    onPrimaryContainer = Color(0xFFEDE7FF),
     secondary = Color(0xFFB1A4FF),
     onSecondary = Color(0xFF15093D),
     background = Color(0xFF000000),
-    onBackground = Color(0xFFEAEAF0),
-    surface = Color(0xFF0E0E11),
-    onSurface = Color(0xFFEAEAF0),
-    surfaceVariant = Color(0xFF1A1A20),
-    onSurfaceVariant = Color(0xFF8E8E96),
-    outline = Color(0xFF2A2A30),
-    outlineVariant = Color(0xFF1F1F25),
+    onBackground = Color(0xFFF2F1F7),
+    surface = Color(0xFF101013),
+    onSurface = Color(0xFFF2F1F7),
+    surfaceVariant = Color(0xFF24242C),
+    onSurfaceVariant = Color(0xFFC4C2D0),
+    outline = Color(0xFF3A3A45),
+    outlineVariant = Color(0xFF26262E),
     error = Color(0xFFFF8FA0),
     onError = Color(0xFF3D0011)
 )
@@ -86,7 +88,24 @@ fun MiniiChatTheme(
     val colors = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val ctx = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
+            val dyn = if (darkTheme) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
+            // Material You's generated dark scheme can produce very low-contrast
+            // onSurfaceVariant against its surface, especially under cool-toned
+            // wallpapers. Override the most legibility-critical roles to keep
+            // chip labels, hints, and divider tints readable while still using
+            // the wallpaper-derived hue for primary / containers.
+            if (darkTheme) {
+                dyn.copy(
+                    background = Color(0xFF000000),
+                    onBackground = Color(0xFFF2F1F7),
+                    surface = Color(0xFF101013),
+                    onSurface = Color(0xFFF2F1F7),
+                    surfaceVariant = Color(0xFF24242C),
+                    onSurfaceVariant = Color(0xFFC4C2D0),
+                    outline = Color(0xFF3A3A45),
+                    outlineVariant = Color(0xFF26262E)
+                )
+            } else dyn
         }
         darkTheme -> DarkColors
         else -> LightColors

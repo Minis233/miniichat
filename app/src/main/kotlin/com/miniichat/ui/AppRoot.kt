@@ -27,9 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.miniichat.ChatViewModel
 import com.miniichat.R
+import com.miniichat.data.ProviderConfig
 import kotlinx.coroutines.launch
 
-private enum class Screen { Chat, Settings, Providers, Assistants }
+private enum class Screen { Chat, Settings, Providers, ProviderEdit, Assistants }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,9 +39,8 @@ fun AppRoot(vm: ChatViewModel) {
     val scope = rememberCoroutineScope()
     var screen by rememberSaveable { mutableStateOf(Screen.Chat) }
     var showModelPicker by rememberSaveable { mutableStateOf(false) }
+    var editingProvider by remember { mutableStateOf<ProviderConfig?>(null) }
 
-    // System back: drawer closes drawer; sub-screens go back to parent;
-    // model picker dismisses; otherwise default (exit app).
     androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) {
         scope.launch { drawerState.close() }
     }
@@ -53,6 +53,9 @@ fun AppRoot(vm: ChatViewModel) {
     androidx.activity.compose.BackHandler(enabled = screen == Screen.Providers) {
         screen = Screen.Settings
     }
+    androidx.activity.compose.BackHandler(enabled = screen == Screen.ProviderEdit) {
+        screen = Screen.Providers
+    }
     androidx.activity.compose.BackHandler(enabled = screen == Screen.Assistants) {
         screen = Screen.Settings
     }
@@ -62,6 +65,7 @@ fun AppRoot(vm: ChatViewModel) {
     val settings by vm.settings.collectAsState()
     val providers by vm.providers.collectAsState()
     val isStreaming by vm.isStreaming.collectAsState()
+    val streamingOverlay by vm.streamingOverlay.collectAsState()
     val error by vm.error.collectAsState()
     val toast by vm.toast.collectAsState()
     val fetchingId by vm.fetchingModelsFor.collectAsState()
@@ -113,15 +117,21 @@ fun AppRoot(vm: ChatViewModel) {
                         settings = settings,
                         activeProvider = activeProvider,
                         isStreaming = isStreaming,
+                        streamingOverlay = streamingOverlay,
                         onMenu = { scope.launch { drawerState.open() } },
                         onSend = { text, atts -> vm.sendMessage(text, atts) },
                         onStop = { vm.stopStreaming() },
                         onRegenerate = { vm.regenerate() },
+                        onRegenerateFrom = { msgId -> vm.regenerateFrom(msgId) },
+                        onDeleteMessage = { msgId -> vm.deleteMessage(msgId) },
+                        onEditMessage = { msgId, newText -> vm.editMessage(msgId, newText) },
                         onNew = { vm.newConversation() },
                         onOpenSettings = { screen = Screen.Settings },
                         onPickModel = {
-                            if (providers.isEmpty()) screen = Screen.Providers
-                            else showModelPicker = true
+                            if (providers.isEmpty()) {
+                                editingProvider = null
+                                screen = Screen.ProviderEdit
+                            } else showModelPicker = true
                         }
                     )
                 }
@@ -154,12 +164,29 @@ fun AppRoot(vm: ChatViewModel) {
                     activeProviderId = settings.activeProviderId,
                     activeModel = settings.activeModel,
                     onBack = { screen = Screen.Settings },
-                    onUpsert = { vm.upsertProvider(it) },
+                    onCreate = {
+                        editingProvider = null
+                        screen = Screen.ProviderEdit
+                    },
+                    onEdit = { p ->
+                        editingProvider = p
+                        screen = Screen.ProviderEdit
+                    },
                     onDelete = { vm.deleteProvider(it) },
                     onFetchModels = { vm.fetchModels(it) },
                     onAddManualModel = { id, m -> vm.addManualModel(id, m) },
                     onRemoveModel = { id, m -> vm.removeModel(id, m) },
                     onSelectModel = { id, m -> vm.selectModel(id, m) }
+                )
+            }
+            Screen.ProviderEdit -> {
+                ProviderEditorScreen(
+                    initial = editingProvider,
+                    onCancel = { screen = Screen.Providers },
+                    onSave = { p ->
+                        vm.upsertProvider(p)
+                        screen = Screen.Providers
+                    }
                 )
             }
         }
@@ -178,7 +205,6 @@ fun AppRoot(vm: ChatViewModel) {
     }
 
     error?.let { msg ->
-        // Only offer "Open Providers" when the error is about provider/model config.
         val needsProviderFix = msg.contains("provider", ignoreCase = true)
             || msg.contains("api key", ignoreCase = true)
             || msg.contains("model", ignoreCase = true)

@@ -391,6 +391,44 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Branch from a specific user message — drops everything after it and re-sends. */
+    fun regenerateFrom(messageId: String) {
+        viewModelScope.launch {
+            val convId = _activeId.value ?: return@launch
+            val conv = store.snapshot().firstOrNull { it.id == convId } ?: return@launch
+            val msgs = conv.messages
+            val idx = msgs.indexOfFirst { it.id == messageId }
+            if (idx < 0) return@launch
+            val target = msgs[idx]
+            if (target.role != "user") return@launch
+            val trimmed = msgs.subList(0, idx + 1)
+            store.upsert(conv.copy(messages = trimmed, updatedAt = System.currentTimeMillis()))
+            sendMessage(target.content, target.attachments)
+        }
+    }
+
+    /** Delete a single message in the current conversation. */
+    fun deleteMessage(messageId: String) {
+        viewModelScope.launch {
+            val convId = _activeId.value ?: return@launch
+            val conv = store.snapshot().firstOrNull { it.id == convId } ?: return@launch
+            val newMsgs = conv.messages.filterNot { it.id == messageId }
+            store.upsert(conv.copy(messages = newMsgs, updatedAt = System.currentTimeMillis()))
+        }
+    }
+
+    /** Edit a message's text content (no resend). */
+    fun editMessage(messageId: String, newContent: String) {
+        viewModelScope.launch {
+            val convId = _activeId.value ?: return@launch
+            val conv = store.snapshot().firstOrNull { it.id == convId } ?: return@launch
+            val newMsgs = conv.messages.map {
+                if (it.id == messageId) it.copy(content = newContent) else it
+            }
+            store.upsert(conv.copy(messages = newMsgs, updatedAt = System.currentTimeMillis()))
+        }
+    }
+
     fun updateSettings(transform: (AppSettings) -> AppSettings) {
         viewModelScope.launch { settingsRepo.update(transform) }
     }

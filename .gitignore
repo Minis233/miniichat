@@ -11,6 +11,5 @@ captures/
 *.apk
 !gradle/wrapper/gradle-wrapper.jar
 .kotlin/
-app/release.keystore
 *.jks
 

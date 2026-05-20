@@ -72,16 +72,14 @@ fun ProvidersScreen(
     activeProviderId: String,
     activeModel: String,
     onBack: () -> Unit,
-    onUpsert: (ProviderConfig) -> Unit,
+    onCreate: () -> Unit,
+    onEdit: (ProviderConfig) -> Unit,
     onDelete: (String) -> Unit,
     onFetchModels: (String) -> Unit,
     onAddManualModel: (String, String) -> Unit,
     onRemoveModel: (String, String) -> Unit,
     onSelectModel: (String, String) -> Unit
 ) {
-    var editing by remember { mutableStateOf<ProviderConfig?>(null) }
-    var creating by remember { mutableStateOf(false) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -104,7 +102,7 @@ fun ProvidersScreen(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.primaryContainer)
-                    .clickable { creating = true }
+                    .clickable { onCreate() }
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -153,21 +151,6 @@ fun ProvidersScreen(
             }
             Spacer(Modifier.height(40.dp))
         }
-    }
-
-    if (creating) {
-        ProviderEditor(
-            initial = null,
-            onCancel = { creating = false },
-            onSave = { onUpsert(it); creating = false }
-        )
-    }
-    editing?.let { target ->
-        ProviderEditor(
-            initial = target,
-            onCancel = { editing = null },
-            onSave = { onUpsert(it); editing = null }
-        )
     }
 }
 
@@ -417,147 +400,3 @@ private fun ModelChip(
     }
 }
 
-@Composable
-fun ProviderEditor(
-    initial: ProviderConfig?,
-    onCancel: () -> Unit,
-    onSave: (ProviderConfig) -> Unit
-) {
-    var name by remember(initial?.id) { mutableStateOf(initial?.name ?: "") }
-    // baseUrl + apiKey here are *user input* — we never write the preset URL into them.
-    var baseUrl by remember(initial?.id) { mutableStateOf(initial?.baseUrl ?: "") }
-    var apiKey by remember(initial?.id) { mutableStateOf(initial?.apiKey ?: "") }
-    var presetMenuOpen by remember(initial?.id) { mutableStateOf(initial == null) }
-    // Selected preset only used as placeholder + fallback default.
-    var presetBaseUrl by remember(initial?.id) { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onCancel,
-        confirmButton = {
-            TextButton(
-                enabled = name.isNotBlank()
-                    && (baseUrl.isNotBlank() || presetBaseUrl.isNotBlank() || initial?.baseUrl?.isNotBlank() == true),
-                onClick = {
-                    val effective = baseUrl.trim().ifEmpty {
-                        presetBaseUrl.ifEmpty { initial?.baseUrl ?: "" }
-                    }
-                    val normalizedUrl = BaseUrlNormalizer.normalize(effective)
-                    val p = (initial ?: ProviderConfig(
-                        id = newId(),
-                        name = name.trim(),
-                        baseUrl = normalizedUrl,
-                        apiKey = apiKey.trim()
-                    )).copy(
-                        name = name.trim(),
-                        baseUrl = normalizedUrl,
-                        apiKey = apiKey.trim()
-                    )
-                    onSave(p)
-                }
-            ) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
-        },
-        title = {
-            Text(if (initial == null) stringResource(R.string.add_provider)
-                else stringResource(R.string.edit_provider))
-        },
-        text = {
-            Column {
-                if (presetMenuOpen && initial == null) {
-                    Text(
-                        stringResource(R.string.pick_preset_or_manual),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        ProviderPresets.all.forEach { preset ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        // Just remember which preset was picked so we
-                                        // can use its baseUrl as placeholder/default.
-                                        // Don't overwrite the user's input fields.
-                                        if (name.isBlank()) name = preset.name
-                                        presetBaseUrl = preset.baseUrl
-                                        presetMenuOpen = false
-                                    }
-                                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(preset.name, style = MaterialTheme.typography.bodyLarge)
-                                    Text(
-                                        preset.hint,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    DialogField(stringResource(R.string.provider_name), name, "") { name = it }
-                    Spacer(Modifier.height(8.dp))
-                    DialogField(
-                        label = stringResource(R.string.setting_base_url),
-                        value = baseUrl,
-                        placeholder = presetBaseUrl.ifEmpty { initial?.baseUrl ?: "https://…/v1" }
-                    ) { baseUrl = it }
-                    Spacer(Modifier.height(8.dp))
-                    DialogField(
-                        stringResource(R.string.setting_api_key),
-                        apiKey,
-                        ""
-                    ) { apiKey = it }
-                    if (initial == null) {
-                        Spacer(Modifier.height(4.dp))
-                        TextButton(onClick = { presetMenuOpen = true }) {
-                            Text(stringResource(R.string.choose_preset))
-                        }
-                    }
-                }
-            }
-        }
-    )
-}
-
-@Composable
-private fun DialogField(
-    label: String,
-    value: String,
-    placeholder: String = "",
-    onChange: (String) -> Unit
-) {
-    Column {
-        Text(label, style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        OutlinedFieldBox {
-            Box {
-                if (value.isEmpty() && placeholder.isNotEmpty()) {
-                    Text(
-                        placeholder,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 14.sp, fontFamily = FontFamily.Monospace
-                        )
-                    )
-                }
-                BasicTextField(
-                    value = value,
-                    onValueChange = onChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = LocalTextStyle.current.copy(
-                        color = LocalContentColor.current,
-                        fontSize = 14.sp
-                    ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    singleLine = true
-                )
-            }
-        }
-    }
-}

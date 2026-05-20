@@ -92,4 +92,7 @@
     <string name="section_about">关于</string>
     <string name="error_dialog_title">出错了</string>
     <string name="error_open_providers">打开服务商设置</string>
+    <string name="edit">编辑</string>
+    <string name="regenerate_from_here">从此处重新生成</string>
+    <string name="advanced_options">高级选项</string>
 </resources>

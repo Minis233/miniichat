@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,10 +81,14 @@ fun ChatScreen(
     settings: AppSettings,
     activeProvider: ProviderConfig?,
     isStreaming: Boolean,
+    streamingOverlay: Pair<String, String>? = null,
     onMenu: () -> Unit,
     onSend: (String, List<com.miniichat.data.Attachment>) -> Unit,
     onStop: () -> Unit,
     onRegenerate: () -> Unit,
+    onRegenerateFrom: (String) -> Unit = {},
+    onDeleteMessage: (String) -> Unit = {},
+    onEditMessage: (String, String) -> Unit = { _, _ -> },
     onNew: () -> Unit,
     onOpenSettings: () -> Unit,
     onPickModel: () -> Unit
@@ -91,7 +96,16 @@ fun ChatScreen(
     var input by rememberSaveable { mutableStateOf("") }
     var pendingAttachments by remember { mutableStateOf<List<com.miniichat.data.Attachment>>(emptyList()) }
     val listState = rememberLazyListState()
-    val messages = conversation?.messages ?: emptyList()
+    val rawMessages = conversation?.messages ?: emptyList()
+    // Apply in-memory streaming overlay so the assistant message updates per-token
+    // without DataStore writes.
+    val messages = remember(rawMessages, streamingOverlay) {
+        val ov = streamingOverlay
+        if (ov == null) rawMessages
+        else rawMessages.map { if (it.id == ov.first) it.copy(content = ov.second) else it }
+    }
+    var editingMessageId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingDraft by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(messages.size, isStreaming) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
@@ -132,8 +146,28 @@ fun ChatScreen(
                         message = msg,
                         senderLabel = if (msg.role == "user") "You"
                         else settings.activeModel.ifBlank { activeProvider?.name ?: "Assistant" },
-                        isLastAssistant = msg == messages.lastOrNull() && msg.role == "assistant",
-                        isStreaming = isStreaming
+                        isLastAssistant = msg.id == messages.lastOrNull()?.id && msg.role == "assistant",
+                        isStreaming = isStreaming,
+                        editing = editingMessageId == msg.id,
+                        editingDraft = if (editingMessageId == msg.id) editingDraft else "",
+                        onEditingDraftChange = { editingDraft = it },
+                        onStartEdit = {
+                            editingMessageId = msg.id
+                            editingDraft = msg.content
+                        },
+                        onCommitEdit = {
+                            editingMessageId?.let { id ->
+                                onEditMessage(id, editingDraft)
+                            }
+                            editingMessageId = null
+                            editingDraft = ""
+                        },
+                        onCancelEdit = {
+                            editingMessageId = null
+                            editingDraft = ""
+                        },
+                        onDelete = { onDeleteMessage(msg.id) },
+                        onRegenerateFrom = { onRegenerateFrom(msg.id) }
                     )
                 }
             }
@@ -284,18 +318,56 @@ private fun MessageItem(
     message: Message,
     senderLabel: String,
     isLastAssistant: Boolean,
-    isStreaming: Boolean
+    isStreaming: Boolean,
+    editing: Boolean = false,
+    editingDraft: String = "",
+    onEditingDraftChange: (String) -> Unit = {},
+    onStartEdit: () -> Unit = {},
+    onCommitEdit: () -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    onRegenerateFrom: () -> Unit = {}
 ) {
     val isUser = message.role == "user"
     if (isUser) {
-        UserBubble(message)
+        UserBubble(
+            message = message,
+            editing = editing,
+            editingDraft = editingDraft,
+            onEditingDraftChange = onEditingDraftChange,
+            onStartEdit = onStartEdit,
+            onCommitEdit = onCommitEdit,
+            onCancelEdit = onCancelEdit,
+            onDelete = onDelete,
+            onRegenerateFrom = onRegenerateFrom
+        )
     } else {
-        AssistantRow(message, senderLabel, isLastAssistant, isStreaming)
+        AssistantRow(
+            message = message,
+            senderLabel = senderLabel,
+            isLastAssistant = isLastAssistant,
+            isStreaming = isStreaming,
+            onDelete = onDelete
+        )
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun UserBubble(message: Message) {
+private fun UserBubble(
+    message: Message,
+    editing: Boolean,
+    editingDraft: String,
+    onEditingDraftChange: (String) -> Unit,
+    onStartEdit: () -> Unit,
+    onCommitEdit: () -> Unit,
+    onCancelEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onRegenerateFrom: () -> Unit
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End
@@ -330,35 +402,112 @@ private fun UserBubble(message: Message) {
                             Text(
                                 att.name,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontSize = 12.sp
-                                ),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
                                 maxLines = 1
                             )
                         }
                     }
                 }
-                if (message.content.isNotEmpty()) Spacer(Modifier.height(4.dp))
+                if (message.content.isNotEmpty() || editing) Spacer(Modifier.height(4.dp))
             }
-            if (message.content.isNotEmpty()) {
-                Box(
+
+            if (editing) {
+                Column(
                     modifier = Modifier
-                        .clip(
-                            RoundedCornerShape(
-                                topStart = 18.dp,
-                                topEnd = 18.dp,
-                                bottomStart = 18.dp,
-                                bottomEnd = 4.dp
-                            )
-                        )
-                        .background(MaterialTheme.colorScheme.primary)
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(12.dp)
                 ) {
-                    SelectionContainer {
-                        Text(
-                            text = message.content,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.bodyLarge
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = editingDraft,
+                        onValueChange = onEditingDraftChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = androidx.compose.material3.LocalTextStyle.current.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 16.sp,
+                            lineHeight = 22.sp
+                        ),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                        androidx.compose.material3.TextButton(onClick = onCancelEdit) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        Spacer(Modifier.width(4.dp))
+                        androidx.compose.material3.TextButton(onClick = onCommitEdit) {
+                            Text(stringResource(R.string.save))
+                        }
+                    }
+                }
+            } else if (message.content.isNotEmpty()) {
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = 18.dp,
+                                    topEnd = 18.dp,
+                                    bottomStart = 18.dp,
+                                    bottomEnd = 4.dp
+                                )
+                            )
+                            .background(MaterialTheme.colorScheme.primary)
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = { menuOpen = true }
+                            )
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = message.content,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false }
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.copy)) },
+                            leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
+                            onClick = {
+                                clipboard.setText(AnnotatedString(message.content))
+                                menuOpen = false
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.edit)) },
+                            leadingIcon = { Icon(Icons.Default.Edit, null) },
+                            onClick = {
+                                menuOpen = false
+                                onStartEdit()
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.regenerate_from_here)) },
+                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                            onClick = {
+                                menuOpen = false
+                                onRegenerateFrom()
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.delete)) },
+                            leadingIcon = {
+                                Icon(
+                                    androidx.compose.material.icons.Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            onClick = {
+                                menuOpen = false
+                                onDelete()
+                            }
                         )
                     }
                 }
@@ -367,13 +516,18 @@ private fun UserBubble(message: Message) {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun AssistantRow(
     message: Message,
     senderLabel: String,
     isLastAssistant: Boolean,
-    isStreaming: Boolean
+    isStreaming: Boolean,
+    onDelete: () -> Unit
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AvatarChip(isUser = false)
@@ -391,12 +545,50 @@ private fun AssistantRow(
         if (message.content.isEmpty() && isLastAssistant && isStreaming) {
             TypingDots()
         } else {
-            SelectionContainer {
-                MarkdownText(
-                    text = message.content,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            Box {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = { if (message.content.isNotEmpty()) menuOpen = true }
+                        )
+                ) {
+                    SelectionContainer {
+                        MarkdownText(
+                            text = message.content,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                androidx.compose.material3.DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false }
+                ) {
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(stringResource(R.string.copy)) },
+                        leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
+                        onClick = {
+                            clipboard.setText(AnnotatedString(message.content))
+                            menuOpen = false
+                        }
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(stringResource(R.string.delete)) },
+                        leadingIcon = {
+                            Icon(
+                                androidx.compose.material.icons.Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onDelete()
+                        }
+                    )
+                }
             }
         }
         if (message.content.isNotEmpty() && (!isLastAssistant || !isStreaming)) {

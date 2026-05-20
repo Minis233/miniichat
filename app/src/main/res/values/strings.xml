@@ -92,4 +92,7 @@
     <string name="section_about">About</string>
     <string name="error_dialog_title">Something went wrong</string>
     <string name="error_open_providers">Open Providers</string>
+    <string name="edit">Edit</string>
+    <string name="regenerate_from_here">Regenerate from here</string>
+    <string name="advanced_options">Advanced</string>
 </resources>

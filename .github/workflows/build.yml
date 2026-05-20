@@ -27,16 +27,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Generate release keystore
-        run: |
-          keytool -genkeypair \
-            -keystore app/release.keystore \
-            -storepass miniichat \
-            -keypass miniichat \
-            -alias miniichat \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=MiniiChat, OU=MiniiChat, O=Minis233, L=NA, ST=NA, C=US"
-
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
